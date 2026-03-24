@@ -33,19 +33,25 @@ export default function Nonogram() {
         const row = Math.floor(y / GRID_SIZE);
         const col = Math.floor(x / GRID_SIZE);
 
-        // Immutable state update for the 2D grid
-        const newGrid = grid.map((rows, i) => {
-            return rows.map((cell, j) => {
-                if (i === row && j === col) {
-                    if (isRightClick){
-                        return cell === -1 ? 0 : -1;
-                    } else {
-                        return cell === 0 ? 1 : 0;
-                    }
-                }
-            })
+        setGrid(prevGrid => {
+            // 1. Shallow copy the grid (the "rows" array)
+            const newGrid = [...prevGrid];
+            
+            // 2. Deep copy only the target row to maintain immutability
+            const newRow = [...newGrid[row]];
+
+            // 3. Apply state logic
+            const current = newRow[col];
+            if (isRightClick) {
+                newRow[col] = current === -1 ? 0 : -1;
+            } else {
+                newRow[col] = current === 0 ? 1 : 0;
+            }
+
+            // 4. Update only that specific row reference
+            newGrid[row] = newRow;
+            return newGrid; 
         })
-        setGrid(newGrid);
     }
 
     /**
