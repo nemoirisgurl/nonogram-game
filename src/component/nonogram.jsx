@@ -103,6 +103,7 @@ export default function Nonogram() {
             height={grid.length * GRID_SIZE}
             onClick={e => {handleClick(e, false)}} // Left click for fill 
             onContextMenu={e => {handleClick(e, true)}} // Right click for cross
+            aria-label='Nonogram Grid'
         />
     )
 }
