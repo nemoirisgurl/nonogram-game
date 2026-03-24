@@ -19,13 +19,8 @@ export default function Nonogram() {
      * Handles cell interaction.
      * Toggles cell state: 0 (Empty) -> 1 (Filled) -> -1 (Crossed)
      */
-    const handleClick = (e) => {
-        const toggleState = (currentState) => {
-            const sequence = [1, 0, -1]; // Define the rotation of states
-            const currentIdx = sequence.indexOf(currentState);
-            const nextIdx = (currentIdx + 1) % sequence.length;
-            return sequence[nextIdx];
-        }
+    const handleClick = (e, isRightClick=false) => {
+        if (isRightClick) e.preventDefault();
 
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
@@ -41,7 +36,13 @@ export default function Nonogram() {
         // Immutable state update for the 2D grid
         const newGrid = grid.map((rows, i) => {
             return rows.map((cell, j) => {
-                return (i === row && j === col) ? toggleState(cell) : cell;
+                if (i === row && j === col) {
+                    if (isRightClick){
+                        return cell === -1 ? 0 : -1;
+                    } else {
+                        return cell === 0 ? 1 : 0;
+                    }
+                }
             })
         })
         setGrid(newGrid);
@@ -94,7 +95,8 @@ export default function Nonogram() {
             ref={canvasRef}
             width={grid[0].length * GRID_SIZE}
             height={grid.length * GRID_SIZE}
-            onClick={handleClick}
+            onClick={e => {handleClick(e, false)}} // Left click for fill 
+            onContextMenu={e => {handleClick(e, true)}} // Right click for cross
         />
     )
 }
