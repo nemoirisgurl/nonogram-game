@@ -1,22 +1,49 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 const NONOGRAM = [[0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0],
                   [0, 0, 0, 0, 0],
-                  [0, 0, 1, -1, -1]];
+                  [0, 0, 0, 0, 0]];
 const GRID_SIZE = 50;
 const LINE_PADDING = 8;
 
+
 export default function Nonogram() {
-    const canvasRef = useRef(null)
+    const [grid, setGrid] = useState(NONOGRAM);
+    const canvasRef = useRef(null);
+    const handleClick = (e) => {
+        const toggleState = (currentState) => {
+            const sequence = [1, 0, -1];
+            const currentIdx = sequence.indexOf(currentState);
+            const nextIdx = (currentIdx + 1) % sequence.length;
+            console.log(sequence[nextIdx])
+            return sequence[nextIdx];
+        }
+        const canvas = canvasRef.current;
+        const cell = canvas.getBoundingClientRect();
+        const x = e.clientX - cell.left;
+        const y = e.clientY - cell.top;
+        const row = Math.floor(y / GRID_SIZE);
+        const col = Math.floor(x / GRID_SIZE);
+        const newGrid = grid.map((rows, i) => {
+            return rows.map((cell, j) => {
+                if (i === row && j === col) {
+                    return toggleState(cell);
+                }
+                return cell;
+            })
+        })
+        setGrid(newGrid);
+    }
+
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return
         const ctx = canvas.getContext('2d')
-        const size = NONOGRAM.length;
+        const size = grid.length;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        NONOGRAM.forEach((row, i) => {
+        grid.forEach((row, i) => {
             row.forEach((cell, j) => {
                 const x = j * GRID_SIZE;
                 const y = i * GRID_SIZE;
@@ -40,14 +67,15 @@ export default function Nonogram() {
             })
             
         })
-    }, [NONOGRAM])
+    }, [grid])
 
     return (
         <>
         <canvas 
             ref={canvasRef}
-            width={NONOGRAM.length * GRID_SIZE}
-            height={NONOGRAM.length * GRID_SIZE}></canvas>
+            width={grid.length * GRID_SIZE}
+            height={grid.length * GRID_SIZE}
+            onClick={handleClick}></canvas>
         </>
     )
 }
