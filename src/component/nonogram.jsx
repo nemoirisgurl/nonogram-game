@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { checkWin, generatePuzzle } from "../lib/nonogramEngine";
 
 const GRID_SIZE = 50; // Pixel size of each square cell
 const LINE_PADDING = 8; // Margin for the 'X' mark in crossed-out cells
@@ -7,63 +8,9 @@ function createEmptyGrid(size) {
   return Array.from({ length: size }, () => Array.from({ length: size }, () => 0));
 }
 
-function deriveLineClues(line) {
-  const runs = [];
-  let current = 0;
-  for (const cell of line) {
-    if (cell === 1) current += 1;
-    else if (current > 0) {
-      runs.push(current);
-      current = 0;
-    }
-  }
-  if (current > 0) runs.push(current);
-  return runs.length ? runs : [0];
-}
-
-function transpose(matrix) {
-  const rows = matrix.length;
-  const cols = matrix[0]?.length ?? 0;
-  const out = Array.from({ length: cols }, () => Array.from({ length: rows }, () => 0));
-  for (let r = 0; r < rows; r += 1) {
-    for (let c = 0; c < cols; c += 1) out[c][r] = matrix[r][c];
-  }
-  return out;
-}
-
-export function generatePuzzle(size) {
-  const density = size <= 5 ? 0.45 : 0.4;
-  let solution = Array.from({ length: size }, () =>
-    Array.from({ length: size }, () => (Math.random() < density ? 1 : 0)),
-  );
-
-  // Avoid the degenerate all-empty puzzle.
-  const anyFilled = solution.some((row) => row.some((cell) => cell === 1));
-  if (!anyFilled) solution = Array.from({ length: size }, () => Array.from({ length: size }, () => 0));
-  if (!anyFilled) solution[Math.floor(size / 2)][Math.floor(size / 2)] = 1;
-
-  const rowClues = solution.map(deriveLineClues);
-  const colClues = transpose(solution).map(deriveLineClues);
-
-  return { size, solution, rowClues, colClues };
-}
-
-export function checkWin(grid, solution) {
-  const size = solution.length;
-  for (let r = 0; r < size; r += 1) {
-    for (let c = 0; c < size; c += 1) {
-      if (grid[r][c] === -1) continue; // ignore crossed cells
-      const isFilled = grid[r][c] === 1;
-      const shouldBeFilled = solution[r][c] === 1;
-      if (isFilled !== shouldBeFilled) return false;
-    }
-  }
-  return true;
-}
-
 export default function Nonogram() {
   const canvasRef = useRef(null);
-  const [puzzle, setPuzzle] = useState(() => generatePuzzle(5));
+  const [puzzle, setPuzzle] = useState(() => generatePuzzle(5, 100));
   const [grid, setGrid] = useState(() => createEmptyGrid(5));
   const [didWin, setDidWin] = useState(false);
 
@@ -75,7 +22,7 @@ export default function Nonogram() {
   const canvasHeight = topGutterPx + puzzle.size * GRID_SIZE;
 
   const newGame = (size) => {
-    const next = generatePuzzle(size);
+    const next = generatePuzzle(size, 100);
     setPuzzle(next);
     setGrid(createEmptyGrid(size));
     setDidWin(false);
