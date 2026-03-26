@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { checkWin, generatePuzzle } from "../lib/nonogramEngine";
 
-const GRID_SIZE = 50; // Pixel size of each square cell
+const GRID_SIZE = 30; // Pixel size of each square cell
 const LINE_PADDING = 8; // Margin for the 'X' mark in crossed-out cells
 
 function createEmptyGrid(size) {
@@ -26,6 +26,7 @@ export default function Nonogram() {
     setPuzzle(next);
     setGrid(createEmptyGrid(size));
     setDidWin(false);
+    return size;
   };
 
     /**
