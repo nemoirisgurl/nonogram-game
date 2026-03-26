@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 
-// Game Constants: Adjusting these will scale the UI automatically
-const NONOGRAM = [
-  [0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0]
-];
 const GRID_SIZE = 50;   // Pixel size of each square cell
 const LINE_PADDING = 8; // Margin for the 'X' mark in crossed-out cells
 
-export default function Nonogram() {
-    const [grid, setGrid] = useState(NONOGRAM);
+function createEmptyGrid(size) {
+  return Array.from({ length: size }, () => Array.from({ length: size }, () => 0));
+}
+
+export default function Nonogram({ size = 5, playerName = "" }) {
+    const [grid, setGrid] = useState(() => createEmptyGrid(size));
     const canvasRef = useRef(null);
+
+    useEffect(() => {
+      setGrid(createEmptyGrid(size));
+    }, [size]);
 
     /**
      * Handles cell interaction.
@@ -97,12 +97,16 @@ export default function Nonogram() {
     }, [grid])
 
     return (
-        <canvas 
-            ref={canvasRef}
-            width={grid[0].length * GRID_SIZE}
-            height={grid.length * GRID_SIZE}
-            onClick={e => {handleClick(e, false)}} // Left click for fill 
-            onContextMenu={e => {handleClick(e, true)}} // Right click for cross
-        />
+        <div style={{ display: "grid", gap: 8 }}>
+          {playerName ? <div style={{ fontWeight: 700 }}>Player: {playerName}</div> : null}
+          <canvas 
+              ref={canvasRef}
+              width={grid[0].length * GRID_SIZE}
+              height={grid.length * GRID_SIZE}
+              onClick={e => {handleClick(e, false)}} // Left click for fill 
+              onContextMenu={e => {handleClick(e, true)}} // Right click for cross
+              aria-label="Nonogram Grid"
+          />
+        </div>
     )
 }
