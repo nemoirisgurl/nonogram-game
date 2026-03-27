@@ -36,15 +36,7 @@ export default function Nonogram({ size = 5, playerName = "" }) {
     setGrid(createEmptyGrid(size));
     setDidWin(false);
   }, [size]);
-
-  const newGame = (size) => {
-    const next = generatePuzzle(size, 100);
-    setPuzzle(next);
-    setGrid(createEmptyGrid(size));
-    setDidWin(false);
-    return size;
-  };
-
+  
     /**
      * Handles cell interaction.
      * Toggles cell state: 0 (Empty) -> 1 (Filled) -> -1 (Crossed)
