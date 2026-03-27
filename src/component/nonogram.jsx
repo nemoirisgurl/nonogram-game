@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { checkWin, generatePuzzle } from "../lib/nonogramEngine";
+import {
+  applyCompletedLineMarks,
+  checkWin,
+  generatePuzzle,
+  getCompletedLines,
+  getHint,
+} from "../lib/nonogramEngine";
 
 let GRID_SIZE = 30; // Pixel size of each square cell
 const LINE_PADDING = 8; // Margin for the 'X' mark in crossed-out cells
@@ -16,6 +22,7 @@ export default function Nonogram() {
   const [grid, setGrid] = useState(() => createEmptyGrid(5));
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [didWin, setDidWin] = useState(false);
+  const [hintMessage, setHintMessage] = useState("");
   const MAX_W = viewportSize.w * 0.8;
   const MAX_H = viewportSize.h * 0.7;
   const maxRowClues = Math.max(...puzzle.rowClues.map((c) => c.length));
@@ -31,6 +38,10 @@ export default function Nonogram() {
   const topGutterPx = maxColClues * GRID_SIZE;
   const canvasWidth = leftGutterPx + puzzle.size * GRID_SIZE;
   const canvasHeight = topGutterPx + puzzle.size * GRID_SIZE;
+  const completedLines = useMemo(
+    () => getCompletedLines(grid, puzzle.solution),
+    [grid, puzzle.solution],
+  );
 
 
   const newGame = (size) => {
@@ -38,6 +49,7 @@ export default function Nonogram() {
     setPuzzle(next);
     setGrid(createEmptyGrid(size));
     setDidWin(false);
+    setHintMessage("");
     dragActionRef.current = null;
     lastDraggedCellRef.current = null;
     return size;
@@ -70,11 +82,12 @@ export default function Nonogram() {
       const newRow = [...newGrid[row]];
       newRow[col] = nextValue;
       newGrid[row] = newRow;
-      return newGrid;
+      return applyCompletedLineMarks(newGrid, puzzle.solution);
     });
   };
 
   const beginDrag = (e) => {
+    if (didWin) return;
     const isRightClick = e.button === 2;
     if (isRightClick) e.preventDefault();
 
@@ -90,12 +103,14 @@ export default function Nonogram() {
       ? current === -1 ? 0 : -1
       : current === 1 ? 0 : 1;
 
+    setHintMessage("");
     dragActionRef.current = nextValue;
     lastDraggedCellRef.current = `${cell.row}:${cell.col}`;
     updateCell(cell.row, cell.col, nextValue);
   };
 
   const handleDrag = (e) => {
+    if (didWin) return;
     if (dragActionRef.current === null) return;
 
     const cell = getCellFromEvent(e);
@@ -111,6 +126,23 @@ export default function Nonogram() {
   const endDrag = () => {
     dragActionRef.current = null;
     lastDraggedCellRef.current = null;
+  };
+
+  const applyHint = () => {
+    if (didWin) {
+      setHintMessage("Puzzle already solved.");
+      return;
+    }
+    const hint = getHint(grid, puzzle.solution, puzzle.rowClues, puzzle.colClues);
+    if (!hint) {
+      setHintMessage("No hint available.");
+      return;
+    }
+
+    setHintMessage(hint.message ?? "Hint ready.");
+    if (typeof hint.row === "number" && typeof hint.col === "number" && typeof hint.value === "number") {
+      updateCell(hint.row, hint.col, hint.value);
+    }
   };
 
     /**
@@ -152,10 +184,12 @@ export default function Nonogram() {
     for (let c = 0; c < puzzle.size; c += 1) {
       const clues = puzzle.colClues[c];
       const startRow = maxColClues - clues.length;
+      const isComplete = completedLines.completedCols[c];
       for (let i = 0; i < clues.length; i += 1) {
         const gutterRow = startRow + i;
         const cx = leftGutterPx + c * GRID_SIZE + GRID_SIZE / 2;
         const cy = gutterRow * GRID_SIZE + GRID_SIZE / 2;
+        ctx.fillStyle = isComplete ? "#0f766e" : "black";
         ctx.fillText(String(clues[i]), cx, cy);
       }
     }
@@ -164,10 +198,12 @@ export default function Nonogram() {
     for (let r = 0; r < puzzle.size; r += 1) {
       const clues = puzzle.rowClues[r];
       const startCol = maxRowClues - clues.length;
+      const isComplete = completedLines.completedRows[r];
       for (let i = 0; i < clues.length; i += 1) {
         const gutterCol = startCol + i;
         const cx = gutterCol * GRID_SIZE + GRID_SIZE / 2;
         const cy = topGutterPx + r * GRID_SIZE + GRID_SIZE / 2;
+        ctx.fillStyle = isComplete ? "#0f766e" : "black";
         ctx.fillText(String(clues[i]), cx, cy);
       }
     }
@@ -193,8 +229,9 @@ export default function Nonogram() {
       row.forEach((cell, c) => {
         const x = leftGutterPx + c * GRID_SIZE;
         const y = topGutterPx + r * GRID_SIZE;
+        const isLineComplete = completedLines.completedRows[r] || completedLines.completedCols[c];
 
-        ctx.fillStyle = cell === 1 ? "black" : "white";
+        ctx.fillStyle = cell === 1 ? "black" : isLineComplete ? "#f2fbf8" : "white";
         ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
 
         if (cell === -1) {
@@ -236,6 +273,7 @@ export default function Nonogram() {
     topGutterPx,
     maxColClues,
     maxRowClues,
+    completedLines,
   ]);
 
   return (
@@ -253,9 +291,16 @@ export default function Nonogram() {
         <button type="button" onClick={() => newGame(20)}>
           New Game 20x20
         </button>
+        <button type="button" onClick={applyHint}>
+          Hint
+        </button>
         <span aria-live="polite" style={{ fontWeight: 700 }}>
           {didWin ? "You win!" : ""}
         </span>
+      </div>
+
+      <div aria-live="polite" style={{ minHeight: 24, fontWeight: 600 }}>
+        {hintMessage}
       </div>
 
       <canvas
@@ -268,6 +313,8 @@ export default function Nonogram() {
         onMouseLeave={endDrag}
         onContextMenu={(e) => e.preventDefault()}
         aria-label="Nonogram Grid"
+        aria-disabled={didWin}
+        style={{ cursor: didWin ? "default" : "crosshair" }}
       />
     </div>
   );
