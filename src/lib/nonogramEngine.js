@@ -233,6 +233,32 @@ function solveCount(rowClues, colClues, size, limit = 2) {
   return { count, solution: firstSolution };
 }
 
+export function solveNonogram(rowClues, colClues, size, limit = 2) {
+  const safeSize = Number.isFinite(size) ? Math.max(1, Math.floor(size)) : 0;
+  if (
+    safeSize <= 0 ||
+    !Array.isArray(rowClues) ||
+    !Array.isArray(colClues) ||
+    rowClues.length !== safeSize ||
+    colClues.length !== safeSize
+  ) {
+    return { status: "invalid", message: "Row clues and column clues must both match the board size." };
+  }
+
+  const normalizedRows = rowClues.map((clue) => Array.isArray(clue) ? clue : [0]);
+  const normalizedCols = colClues.map((clue) => Array.isArray(clue) ? clue : [0]);
+  const { count, solution } = solveCount(normalizedRows, normalizedCols, safeSize, limit);
+
+  if (count === 0) {
+    return { status: "unsolved", message: "No valid solution matches those clues." };
+  }
+  if (count > 1) {
+    return { status: "multiple", message: "These clues allow multiple solutions under the current solver." };
+  }
+
+  return { status: "solved", solution, message: "Unique solution found." };
+}
+
 function generatePuzzleRandom(size) {
   const safeSize = Number.isFinite(size) ? Math.max(1, Math.floor(size)) : 5;
   const density = safeSize <= 5 ? 0.45 : 0.4;
