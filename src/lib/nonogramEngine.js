@@ -37,6 +37,14 @@ function deriveLineClues(line) {
   return runs.length ? runs : [0];
 }
 
+function normalizePlayableLine(line, length) {
+  const safeLength = Number.isFinite(length) ? Math.max(0, Math.floor(length)) : 0;
+  return Array.from({ length: safeLength }, (_, index) => {
+    const cell = line?.[index] ?? 0;
+    return cell === 1 ? 1 : 0;
+  });
+}
+
 function transpose(matrix) {
   if (!Array.isArray(matrix) || matrix.length === 0) return [];
   const rows = matrix.length;
@@ -46,6 +54,12 @@ function transpose(matrix) {
     for (let c = 0; c < cols; c += 1) out[c][r] = matrix[r][c];
   }
   return out;
+}
+
+function cloneGrid(grid, size) {
+  return Array.from({ length: size }, (_, rowIndex) =>
+    Array.from({ length: size }, (_, colIndex) => grid?.[rowIndex]?.[colIndex] ?? 0),
+  );
 }
 
 export function getAllRowPatterns(clues, length) {
@@ -252,6 +266,135 @@ export function generatePuzzle(size, budgetMs = 100) {
     const { count, solution } = solveCount(candidate.rowClues, candidate.colClues, safeSize, 2);
     if (count === 1 && solution) return { ...candidate, solution };
   }
+}
+
+export function getCompletedLines(grid, solution) {
+  if (!Array.isArray(grid) || !Array.isArray(solution) || solution.length === 0) {
+    return { completedRows: [], completedCols: [] };
+  }
+
+  const size = solution.length;
+  const completedRows = [];
+  const completedCols = [];
+
+  for (let row = 0; row < size; row += 1) {
+    const playedRow = normalizePlayableLine(grid[row], size);
+    const solutionRow = normalizePlayableLine(solution[row], size);
+    completedRows.push(playedRow.every((cell, index) => cell === solutionRow[index]));
+  }
+
+  for (let col = 0; col < size; col += 1) {
+    let complete = true;
+    for (let row = 0; row < size; row += 1) {
+      const playedCell = grid?.[row]?.[col] === 1 ? 1 : 0;
+      const solutionCell = solution?.[row]?.[col] === 1 ? 1 : 0;
+      if (playedCell !== solutionCell) {
+        complete = false;
+        break;
+      }
+    }
+    completedCols.push(complete);
+  }
+
+  return { completedRows, completedCols };
+}
+
+export function applyCompletedLineMarks(grid, solution) {
+  if (!Array.isArray(grid) || !Array.isArray(solution) || solution.length === 0) {
+    return grid;
+  }
+
+  const size = solution.length;
+  const { completedRows, completedCols } = getCompletedLines(grid, solution);
+  const nextGrid = cloneGrid(grid, size);
+  let changed = false;
+
+  for (let row = 0; row < size; row += 1) {
+    if (!completedRows[row]) continue;
+    for (let col = 0; col < size; col += 1) {
+      if (solution[row][col] === 0 && nextGrid[row][col] === 0) {
+        nextGrid[row][col] = -1;
+        changed = true;
+      }
+    }
+  }
+
+  for (let col = 0; col < size; col += 1) {
+    if (!completedCols[col]) continue;
+    for (let row = 0; row < size; row += 1) {
+      if (solution[row][col] === 0 && nextGrid[row][col] === 0) {
+        nextGrid[row][col] = -1;
+        changed = true;
+      }
+    }
+  }
+
+  return changed ? nextGrid : grid;
+}
+
+export function getHint(grid, solution, rowClues = [], colClues = []) {
+  if (!Array.isArray(grid) || !Array.isArray(solution) || solution.length === 0) {
+    return null;
+  }
+
+  const size = solution.length;
+  const { completedRows, completedCols } = getCompletedLines(grid, solution);
+
+  for (let row = 0; row < size; row += 1) {
+    if (!completedRows[row]) continue;
+    for (let col = 0; col < size; col += 1) {
+      if (solution[row][col] === 0 && (grid?.[row]?.[col] ?? 0) === 0) {
+        return {
+          row,
+          col,
+          value: -1,
+          message: `Row ${row + 1} is complete. Cross the remaining empty cells in that row.`,
+        };
+      }
+    }
+  }
+
+  for (let col = 0; col < size; col += 1) {
+    if (!completedCols[col]) continue;
+    for (let row = 0; row < size; row += 1) {
+      if (solution[row][col] === 0 && (grid?.[row]?.[col] ?? 0) === 0) {
+        return {
+          row,
+          col,
+          value: -1,
+          message: `Column ${col + 1} is complete. Cross the remaining empty cells in that column.`,
+        };
+      }
+    }
+  }
+
+  for (let row = 0; row < size; row += 1) {
+    for (let col = 0; col < size; col += 1) {
+      const current = grid?.[row]?.[col] ?? 0;
+      const target = solution[row][col] === 1 ? 1 : -1;
+      if (current === target) continue;
+
+      if (target === 1) {
+        const clueLabel = rowClues[row]?.join(", ") ?? "this row";
+        return {
+          row,
+          col,
+          value: 1,
+          message: `Hint: row ${row + 1} still needs a filled cell. Check the clue ${clueLabel}.`,
+        };
+      }
+
+      const clueLabel = colClues[col]?.join(", ") ?? "this column";
+      return {
+        row,
+        col,
+        value: -1,
+        message: `Hint: column ${col + 1} has a confirmed empty space. Check the clue ${clueLabel}.`,
+      };
+    }
+  }
+
+  return { message: "No hint available. The board already matches the solution." };
 }
 
 export function checkWin(grid, solution) {
