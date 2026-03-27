@@ -10,6 +10,8 @@ function createEmptyGrid(size) {
 
 export default function Nonogram({ size = 5, playerName = "" }) {
   const canvasRef = useRef(null);
+  const dragActionRef = useRef(null);
+  const lastDraggedCellRef = useRef(null);
   const [puzzle, setPuzzle] = useState(() => generatePuzzle(5, 100));
   const [grid, setGrid] = useState(() => createEmptyGrid(5));
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight });
@@ -35,43 +37,78 @@ export default function Nonogram({ size = 5, playerName = "" }) {
     setPuzzle(next);
     setGrid(createEmptyGrid(size));
     setDidWin(false);
+    dragActionRef.current = null;
+    lastDraggedCellRef.current = null;
   }, [size]);
   
-    /**
-     * Handles cell interaction.
-     * Toggles cell state: 0 (Empty) -> 1 (Filled) -> -1 (Crossed)
-     */
-  const handleClick = (e, isRightClick = false) => {
-    if (isRightClick) e.preventDefault();
-
+  const getCellFromEvent = (e) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
 
-    // Calculate click coordinates relative to the canvas origin
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Only the grid (not clue gutters) is interactive.
-    if (x < leftGutterPx || y < topGutterPx) return;
+    if (x < leftGutterPx || y < topGutterPx) return null;
     const gridX = x - leftGutterPx;
     const gridY = y - topGutterPx;
 
     const row = Math.floor(gridY / GRID_SIZE);
     const col = Math.floor(gridX / GRID_SIZE);
-    if (row < 0 || col < 0 || row >= puzzle.size || col >= puzzle.size) return;
+    if (row < 0 || col < 0 || row >= puzzle.size || col >= puzzle.size) return null;
 
+    return { row, col };
+  };
+
+  const updateCell = (row, col, nextValue) => {
     setGrid((prevGrid) => {
+      if (prevGrid[row][col] === nextValue) return prevGrid;
+
       const newGrid = [...prevGrid];
       const newRow = [...newGrid[row]];
-
-      const current = newRow[col];
-      if (isRightClick) newRow[col] = current === -1 ? 0 : -1;
-      else newRow[col] = current === 0 ? 1 : 0;
-
+      newRow[col] = nextValue;
       newGrid[row] = newRow;
       return newGrid;
     });
+  };
+
+  const beginDrag = (e) => {
+    const isRightClick = e.button === 2;
+    if (isRightClick) e.preventDefault();
+
+    const cell = getCellFromEvent(e);
+    if (!cell) {
+      dragActionRef.current = null;
+      lastDraggedCellRef.current = null;
+      return;
+    }
+
+    const current = grid[cell.row][cell.col];
+    const nextValue = isRightClick
+      ? current === -1 ? 0 : -1
+      : current === 1 ? 0 : 1;
+
+    dragActionRef.current = nextValue;
+    lastDraggedCellRef.current = `${cell.row}:${cell.col}`;
+    updateCell(cell.row, cell.col, nextValue);
+  };
+
+  const handleDrag = (e) => {
+    if (dragActionRef.current === null) return;
+
+    const cell = getCellFromEvent(e);
+    if (!cell) return;
+
+    const key = `${cell.row}:${cell.col}`;
+    if (lastDraggedCellRef.current === key) return;
+
+    lastDraggedCellRef.current = key;
+    updateCell(cell.row, cell.col, dragActionRef.current);
+  };
+
+  const endDrag = () => {
+    dragActionRef.current = null;
+    lastDraggedCellRef.current = null;
   };
 
     /**
@@ -81,6 +118,11 @@ export default function Nonogram({ size = 5, playerName = "" }) {
   useEffect(() => {
     setDidWin(checkWin(grid, puzzle.solution));
   }, [grid, puzzle.solution]);
+
+  useEffect(() => {
+    window.addEventListener("mouseup", endDrag);
+    return () => window.removeEventListener("mouseup", endDrag);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -207,8 +249,11 @@ export default function Nonogram({ size = 5, playerName = "" }) {
         ref={canvasRef}
         width={canvasWidth}
         height={canvasHeight}
-        onClick={(e) => handleClick(e, false)} // Left click for fill
-        onContextMenu={(e) => handleClick(e, true)} // Right click for cross
+        onMouseDown={beginDrag}
+        onMouseMove={handleDrag}
+        onMouseUp={endDrag}
+        onMouseLeave={endDrag}
+        onContextMenu={(e) => e.preventDefault()}
         aria-label="Nonogram Grid"
       />
     </div>
