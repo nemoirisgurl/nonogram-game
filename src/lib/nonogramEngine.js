@@ -4,7 +4,8 @@ const UNIQUE_SOLVE_MAX_SIZE = 10;
 const MAX_ROW_PATTERNS = 5000;
 
 function range(n) {
-  return Array.from({ length: n }, (_, i) => i);
+  const safeLength = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+  return Array.from({ length: safeLength }, (_, i) => i);
 }
 
 function sum(nums) {
@@ -37,6 +38,7 @@ function deriveLineClues(line) {
 }
 
 function transpose(matrix) {
+  if (!Array.isArray(matrix) || matrix.length === 0) return [];
   const rows = matrix.length;
   const cols = matrix[0]?.length ?? 0;
   const out = Array.from({ length: cols }, () => Array.from({ length: rows }, () => 0));
@@ -47,6 +49,7 @@ function transpose(matrix) {
 }
 
 export function getAllRowPatterns(clues, length) {
+  if (!Array.isArray(clues) || length < 0) return [];
   if (clues.length === 1 && clues[0] === 0) return [Array.from({ length }, () => 0)];
 
   const minUsed = sum(clues) + (clues.length - 1);
@@ -96,6 +99,9 @@ function barsToRowPattern(bars, clues, totalSlots) {
 }
 
 function getRowPatternIterable(clues, length) {
+  if (!Array.isArray(clues) || length < 0) {
+    return { tooMany: false, iterable: [] };
+  }
   if (clues.length === 1 && clues[0] === 0) {
     return { tooMany: false, iterable: [Array.from({ length }, () => 0)] };
   }
@@ -165,6 +171,9 @@ function isColumnPrefixConsistent(prefix, clue, remainingCells) {
 }
 
 function solveCount(rowClues, colClues, size, limit = 2) {
+  if (!Array.isArray(rowClues) || !Array.isArray(colClues) || size <= 0) {
+    return { count: 0, solution: null };
+  }
   const grid = Array.from({ length: size }, () => null);
   let count = 0;
   let firstSolution = null;
@@ -183,9 +192,10 @@ function solveCount(rowClues, colClues, size, limit = 2) {
       count = limit;
       return;
     }
-    if (iterable.length === 0) return;
 
+    let hasPattern = false;
     for (const pattern of iterable) {
+      hasPattern = true;
       grid[r] = pattern;
 
       let ok = true;
@@ -201,6 +211,8 @@ function solveCount(rowClues, colClues, size, limit = 2) {
       if (ok) backtrack(r + 1);
       if (count >= limit) return;
     }
+
+    if (!hasPattern) return;
   }
 
   backtrack(0);
@@ -208,43 +220,48 @@ function solveCount(rowClues, colClues, size, limit = 2) {
 }
 
 function generatePuzzleRandom(size) {
-  const density = size <= 5 ? 0.45 : 0.4;
-  let solution = Array.from({ length: size }, () =>
-    Array.from({ length: size }, () => (Math.random() < density ? 1 : 0)),
+  const safeSize = Number.isFinite(size) ? Math.max(1, Math.floor(size)) : 5;
+  const density = safeSize <= 5 ? 0.45 : 0.4;
+  let solution = Array.from({ length: safeSize }, () =>
+    Array.from({ length: safeSize }, () => (Math.random() < density ? 1 : 0)),
   );
 
   const anyFilled = solution.some((row) => row.some((cell) => cell === 1));
-  if (!anyFilled) solution = Array.from({ length: size }, () => Array.from({ length: size }, () => 0));
-  if (!anyFilled) solution[Math.floor(size / 2)][Math.floor(size / 2)] = 1;
+  if (!anyFilled) solution = Array.from({ length: safeSize }, () => Array.from({ length: safeSize }, () => 0));
+  if (!anyFilled) solution[Math.floor(safeSize / 2)][Math.floor(safeSize / 2)] = 1;
 
   const rowClues = solution.map(deriveLineClues);
   const colClues = transpose(solution).map(deriveLineClues);
 
-  return { size, solution, rowClues, colClues };
+  return { size: safeSize, solution, rowClues, colClues };
 }
 
 export function generatePuzzle(size, budgetMs = 100) {
+  const safeSize = Number.isFinite(size) ? Math.max(1, Math.floor(size)) : 5;
+  const safeBudgetMs = Number.isFinite(budgetMs) ? Math.max(0, budgetMs) : 100;
   // Uniqueness is expensive for larger boards; keep the UI responsive.
-  if (size > UNIQUE_SOLVE_MAX_SIZE) return generatePuzzleRandom(size);
+  if (safeSize > UNIQUE_SOLVE_MAX_SIZE) return generatePuzzleRandom(safeSize);
 
   const start = typeof performance !== "undefined" ? performance.now() : Date.now();
 
   while (true) {
     const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    if (now - start > budgetMs) return generatePuzzleRandom(size);
+    if (now - start > safeBudgetMs) return generatePuzzleRandom(safeSize);
 
-    const candidate = generatePuzzleRandom(size);
-    const { count, solution } = solveCount(candidate.rowClues, candidate.colClues, size, 2);
+    const candidate = generatePuzzleRandom(safeSize);
+    const { count, solution } = solveCount(candidate.rowClues, candidate.colClues, safeSize, 2);
     if (count === 1 && solution) return { ...candidate, solution };
   }
 }
 
 export function checkWin(grid, solution) {
+  if (!Array.isArray(grid) || !Array.isArray(solution) || solution.length === 0) return false;
   const size = solution.length;
   for (let r = 0; r < size; r += 1) {
     for (let c = 0; c < size; c += 1) {
-      if (grid[r][c] === -1) continue;
-      const isFilled = grid[r][c] === 1;
+      const cell = grid[r]?.[c] ?? 0;
+      if (cell === -1) continue;
+      const isFilled = cell === 1;
       const shouldBeFilled = solution[r][c] === 1;
       if (isFilled !== shouldBeFilled) return false;
     }
