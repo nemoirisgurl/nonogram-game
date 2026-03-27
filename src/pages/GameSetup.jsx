@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import '../App.css'
 
 export default function GameSetup({ initialName = "", initialSize = 5, onStart }) {
   const [name, setName] = useState(initialName);
@@ -30,6 +31,7 @@ export default function GameSetup({ initialName = "", initialSize = 5, onStart }
         </label>
         <input
           id="playerName"
+          className="name-input"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Nemo"
