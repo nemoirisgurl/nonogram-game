@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { checkWin, generatePuzzle } from "../lib/nonogramEngine";
 
-const GRID_SIZE = 30; // Pixel size of each square cell
+let GRID_SIZE = 30; // Pixel size of each square cell
 const LINE_PADDING = 8; // Margin for the 'X' mark in crossed-out cells
 
 function createEmptyGrid(size) {
@@ -10,12 +10,21 @@ function createEmptyGrid(size) {
 
 export default function Nonogram({ size = 5, playerName = "" }) {
   const canvasRef = useRef(null);
-  const [puzzle, setPuzzle] = useState(() => generatePuzzle(size, 100));
-  const [grid, setGrid] = useState(() => createEmptyGrid(size));
+  const [puzzle, setPuzzle] = useState(() => generatePuzzle(5, 100));
+  const [grid, setGrid] = useState(() => createEmptyGrid(5));
+  const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [didWin, setDidWin] = useState(false);
-
+  const MAX_W = viewportSize.w * 0.8;
+  const MAX_H = viewportSize.h * 0.7;
   const maxRowClues = Math.max(...puzzle.rowClues.map((c) => c.length));
   const maxColClues = Math.max(...puzzle.colClues.map((c) => c.length));
+  const GRID_SIZE = useMemo(() => {
+    const totalHorizontalCells = puzzle.size + maxRowClues;
+    const totalVerticalCells = puzzle.size + maxColClues;
+    const sizeByWidth = Math.floor(MAX_W / totalHorizontalCells);
+    const sizeByHeight = Math.floor(MAX_H / totalVerticalCells);
+    return Math.max(20, Math.min(50, sizeByWidth, sizeByHeight));
+}, [puzzle.size, maxRowClues, maxColClues, viewportSize]);
   const leftGutterPx = maxRowClues * GRID_SIZE;
   const topGutterPx = maxColClues * GRID_SIZE;
   const canvasWidth = leftGutterPx + puzzle.size * GRID_SIZE;
