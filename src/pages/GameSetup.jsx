@@ -6,19 +6,19 @@ const shellStyle = {
   margin: "0 auto",
   background: "#ffffff",
   border: "1px solid rgba(15, 23, 42, 0.08)",
-  borderRadius: 22,
+  borderRadius: "clamp(16px, 3vw, 22px)",
   boxShadow: "0 24px 60px rgba(15, 23, 42, 0.12)",
   overflow: "hidden",
 };
 
 const fieldStyle = {
   width: "100%",
-  padding: "12px 14px",
+  padding: "clamp(10px, 2.8vw, 12px) clamp(12px, 3vw, 14px)",
   borderRadius: 999,
   border: "1.5px solid rgba(15, 23, 42, 0.18)",
   background: "#ffffff",
   color: "#111111",
-  fontSize: 15,
+  fontSize: "clamp(0.95rem, 2.8vw, 1rem)",
   outline: "none",
 };
 
@@ -46,16 +46,16 @@ export default function GameSetup({ initialName = "", initialSize = 5, initialHi
           });
         }}
         style={{
-          margin: 24,
+          margin: "clamp(14px, 3vw, 24px)",
           padding: "30px clamp(18px, 4vw, 36px)",
           background: "#d7f1ff",
-          borderRadius: 18,
+          borderRadius: "clamp(16px, 3vw, 18px)",
           display: "grid",
-          gap: 22,
+          gap: "clamp(18px, 4vw, 22px)",
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 34, color: "#111111" }}>Game Setup</h1>
+          <h1 style={{ margin: 0, fontSize: "clamp(1.7rem, 5vw, 2.125rem)", color: "#111111" }}>Game Setup</h1>
         </div>
 
         <div
@@ -127,7 +127,7 @@ export default function GameSetup({ initialName = "", initialSize = 5, initialHi
                 background: canStart ? (isStartHovered ? "#e3b11f" : "#ffca2c") : "#f1d88a",
                 color: "#111111",
                 fontWeight: 800,
-                fontSize: 16,
+                fontSize: "clamp(0.95rem, 3vw, 1rem)",
                 cursor: canStart ? "pointer" : "not-allowed",
                 boxShadow: "inset 0 -2px 0 rgba(0, 0, 0, 0.12)",
                 transform: canStart ? "scale(1.02)" : "none",

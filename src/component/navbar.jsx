@@ -3,8 +3,9 @@ const topBarStyle = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  gap: 16,
-  padding: "14px 18px",
+  gap: 12,
+  flexWrap: "wrap",
+  padding: "clamp(12px, 2.5vw, 14px) clamp(14px, 3vw, 18px)",
   background: "#f5f5f5",
   borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
 };
@@ -12,14 +13,16 @@ const topBarStyle = {
 const brandStyle = {
   display: "flex",
   alignItems: "center",
-  gap: 12,
+  gap: 10,
   textDecoration: "none",
+  minWidth: 0,
+  flex: "1 1 240px",
 };
 
 const linkStyle = {
   color: "#111111",
   textDecoration: "none",
-  fontSize: 22,
+  fontSize: "clamp(1rem, 2.8vw, 1.375rem)",
   fontWeight: 700,
 };
 
@@ -30,14 +33,22 @@ export default function Navbar() {
         <img
           src={logo}
           alt="Nonogrammer logo"
-          style={{ width: 36, height: 36, objectFit: "contain", flexShrink: 0 }}
+          style={{ width: "clamp(28px, 6vw, 36px)", height: "clamp(28px, 6vw, 36px)", objectFit: "contain", flexShrink: 0 }}
         />
-        <span style={{ fontSize: 32, fontWeight: 800, color: "#111111", lineHeight: 1 }}>
+        <span
+          style={{
+            fontSize: "clamp(1.4rem, 4.8vw, 2rem)",
+            fontWeight: 800,
+            color: "#111111",
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+          }}
+        >
           Nonogrammer
         </span>
       </a>
 
-      <nav style={{ display: "flex", alignItems: "center", gap: 24 }}>
+      <nav style={{ display: "flex", alignItems: "center", gap: "clamp(12px, 3vw, 24px)", flexWrap: "wrap", justifyContent: "flex-end" }}>
         <a href="#/play" style={linkStyle}>
           Play
         </a>

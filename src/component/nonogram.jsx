@@ -39,8 +39,9 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
   const [isCrossHovered, setIsCrossHovered] = useState(false);
   const maxRowClues = Math.max(...puzzle.rowClues.map((clue) => clue.length));
   const maxColClues = Math.max(...puzzle.colClues.map((clue) => clue.length));
-  const maxBoardWidth = Math.min(viewportSize.w * 0.52, 620);
-  const maxBoardHeight = Math.min(viewportSize.h * 0.58, 620);
+  const isCompactViewport = viewportSize.w < 820;
+  const maxBoardWidth = Math.min(viewportSize.w * (isCompactViewport ? 0.84 : 0.52), 620);
+  const maxBoardHeight = Math.min(viewportSize.h * (isCompactViewport ? 0.48 : 0.58), 620);
   const gridSize = useMemo(() => {
     const totalHorizontalCells = puzzle.size + maxRowClues;
     const totalVerticalCells = puzzle.size + maxColClues;
@@ -381,16 +382,16 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
     <section
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-        gap: 28,
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+        gap: "clamp(18px, 4vw, 28px)",
         alignItems: "start",
       }}
     >
       <div style={{ display: "grid", justifyItems: "center", gap: 12 }}>
         <div
           style={{
-            padding: 18,
-            borderRadius: 18,
+            padding: "clamp(10px, 3vw, 18px)",
+            borderRadius: "clamp(14px, 3vw, 18px)",
             background: "#ffffff",
             boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)",
             overflow: "auto",
@@ -411,7 +412,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
             style={{ cursor: didWin ? "default" : "crosshair", display: "block" }}
           />
         </div>
-        <p style={{ fontSize: 14, color: "#5b6473", textAlign: "center" }}>
+        <p style={{ fontSize: "clamp(0.8rem, 2.6vw, 0.875rem)", color: "#5b6473", textAlign: "center" }}>
           Left click uses the selected tool. Right click always places a cross.
         </p>
       </div>
@@ -419,27 +420,27 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
       <aside
         style={{
           display: "grid",
-          gap: 18,
-          padding: "28px 22px",
-          borderRadius: 22,
+          gap: "clamp(14px, 3vw, 18px)",
+          padding: "clamp(16px, 4vw, 28px) clamp(14px, 4vw, 22px)",
+          borderRadius: "clamp(16px, 3vw, 22px)",
           background: "#d7f1ff",
           boxShadow: "0 18px 40px rgba(56, 189, 248, 0.18)",
         }}
       >
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "baseline" }}>
-            <strong style={{ fontSize: 22, color: "#111111" }}>Player:</strong>
-            <span style={{ color: "#5b6473", fontSize: 18 }}>{playerName || "Your Username..."}</span>
+            <strong style={{ fontSize: "clamp(1.1rem, 3.6vw, 1.375rem)", color: "#111111" }}>Player:</strong>
+            <span style={{ color: "#5b6473", fontSize: "clamp(0.95rem, 3vw, 1.125rem)" }}>{playerName || "Your Username..."}</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "baseline" }}>
-            <strong style={{ fontSize: 22, color: "#111111" }}>Time:</strong>
-            <span style={{ color: "#5b6473", fontSize: 18 }}>{formatTime(elapsedSeconds)}</span>
+            <strong style={{ fontSize: "clamp(1.1rem, 3.6vw, 1.375rem)", color: "#111111" }}>Time:</strong>
+            <span style={{ color: "#5b6473", fontSize: "clamp(0.95rem, 3vw, 1.125rem)" }}>{formatTime(elapsedSeconds)}</span>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 16 }}>
           <div style={{ display: "grid", gap: 10 }}>
-            <strong style={{ fontSize: 22, color: "#111111" }}>Mode</strong>
+            <strong style={{ fontSize: "clamp(1.1rem, 3.6vw, 1.375rem)", color: "#111111" }}>Mode</strong>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
@@ -461,8 +462,8 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
           </div>
 
           <div style={{ display: "grid", gap: 10 }}>
-            <strong style={{ fontSize: 22, color: "#111111" }}>Hints</strong>
-            <span style={{ color: "#5b6473", fontSize: 16 }}>
+            <strong style={{ fontSize: "clamp(1.1rem, 3.6vw, 1.375rem)", color: "#111111" }}>Hints</strong>
+            <span style={{ color: "#5b6473", fontSize: "clamp(0.9rem, 2.8vw, 1rem)" }}>
               {hintCap === null ? "Unlimited hints" : `${hintsRemaining}/${hintCap}`}
             </span>
             <button
