@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   applyCompletedLineMarks,
   checkWin,
@@ -7,146 +7,83 @@ import {
   getHint,
 } from "../lib/nonogramEngine";
 
-let GRID_SIZE = 30; // Pixel size of each square cell
-const LINE_PADDING = 8; // Margin for the 'X' mark in crossed-out cells
+const LINE_PADDING = 8;
 
 function createEmptyGrid(size) {
   return Array.from({ length: size }, () => Array.from({ length: size }, () => 0));
 }
 
-export default function Nonogram({ size = 5, playerName = "" }) {
+function formatTime(totalSeconds) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = String(Math.floor(safeSeconds / 60)).padStart(2, "0");
+  const seconds = String(safeSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
+export default function Nonogram({ size = 5, playerName = "", hintLimit = null, onAbandon }) {
   const canvasRef = useRef(null);
   const dragActionRef = useRef(null);
   const lastDraggedCellRef = useRef(null);
-  const [puzzle, setPuzzle] = useState(() => generatePuzzle(5, 100));
-  const [grid, setGrid] = useState(() => createEmptyGrid(5));
+  const [puzzle, setPuzzle] = useState(() => generatePuzzle(size, 100));
+  const [grid, setGrid] = useState(() => createEmptyGrid(size));
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [didWin, setDidWin] = useState(false);
   const [hintMessage, setHintMessage] = useState("");
-  const MAX_W = viewportSize.w * 0.8;
-  const MAX_H = viewportSize.h * 0.7;
-  const maxRowClues = Math.max(...puzzle.rowClues.map((c) => c.length));
-  const maxColClues = Math.max(...puzzle.colClues.map((c) => c.length));
-  const GRID_SIZE = useMemo(() => {
+  const [toolMode, setToolMode] = useState("fill");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [hoveredButton, setHoveredButton] = useState(null);
+  const maxRowClues = Math.max(...puzzle.rowClues.map((clue) => clue.length));
+  const maxColClues = Math.max(...puzzle.colClues.map((clue) => clue.length));
+  const maxBoardWidth = Math.min(viewportSize.w * 0.52, 620);
+  const maxBoardHeight = Math.min(viewportSize.h * 0.58, 620);
+  const gridSize = useMemo(() => {
     const totalHorizontalCells = puzzle.size + maxRowClues;
     const totalVerticalCells = puzzle.size + maxColClues;
-    const sizeByWidth = Math.floor(MAX_W / totalHorizontalCells);
-    const sizeByHeight = Math.floor(MAX_H / totalVerticalCells);
-    return Math.max(20, Math.min(50, sizeByWidth, sizeByHeight));
-}, [puzzle.size, maxRowClues, maxColClues, viewportSize]);
-  const leftGutterPx = maxRowClues * GRID_SIZE;
-  const topGutterPx = maxColClues * GRID_SIZE;
-  const canvasWidth = leftGutterPx + puzzle.size * GRID_SIZE;
-  const canvasHeight = topGutterPx + puzzle.size * GRID_SIZE;
+    const sizeByWidth = Math.floor(maxBoardWidth / totalHorizontalCells);
+    const sizeByHeight = Math.floor(maxBoardHeight / totalVerticalCells);
+    return Math.max(20, Math.min(42, sizeByWidth, sizeByHeight));
+  }, [maxBoardHeight, maxBoardWidth, maxColClues, maxRowClues, puzzle.size]);
+  const leftGutterPx = maxRowClues * gridSize;
+  const topGutterPx = maxColClues * gridSize;
+  const canvasWidth = leftGutterPx + puzzle.size * gridSize;
+  const canvasHeight = topGutterPx + puzzle.size * gridSize;
   const completedLines = useMemo(
     () => getCompletedLines(grid, puzzle.solution),
     [grid, puzzle.solution],
   );
+  const hintCap = Number.isFinite(hintLimit) ? Math.max(0, hintLimit) : null;
+  const hintsRemaining = hintCap === null ? null : Math.max(0, hintCap - hintsUsed);
 
   useEffect(() => {
-    const next = generatePuzzle(size, 100);
-    setPuzzle(next);
+    const handleResize = () => setViewportSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    const nextPuzzle = generatePuzzle(size, 100);
+    setPuzzle(nextPuzzle);
     setGrid(createEmptyGrid(size));
     setDidWin(false);
     setHintMessage("");
+    setElapsedSeconds(0);
+    setHintsUsed(0);
+    setSaveMessage("");
+    setToolMode("fill");
     dragActionRef.current = null;
     lastDraggedCellRef.current = null;
   }, [size]);
-  
-  const getCellFromEvent = (e) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
 
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  useEffect(() => {
+    if (didWin) return undefined;
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds((current) => current + 1);
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [didWin]);
 
-    if (x < leftGutterPx || y < topGutterPx) return null;
-    const gridX = x - leftGutterPx;
-    const gridY = y - topGutterPx;
-
-    const row = Math.floor(gridY / GRID_SIZE);
-    const col = Math.floor(gridX / GRID_SIZE);
-    if (row < 0 || col < 0 || row >= puzzle.size || col >= puzzle.size) return null;
-
-    return { row, col };
-  };
-
-  const updateCell = (row, col, nextValue) => {
-    setGrid((prevGrid) => {
-      if (prevGrid[row][col] === nextValue) return prevGrid;
-
-      const newGrid = [...prevGrid];
-      const newRow = [...newGrid[row]];
-      newRow[col] = nextValue;
-      newGrid[row] = newRow;
-      return applyCompletedLineMarks(newGrid, puzzle.solution);
-    });
-  };
-
-  const beginDrag = (e) => {
-    if (didWin) return;
-    const isRightClick = e.button === 2;
-    if (isRightClick) e.preventDefault();
-
-    const cell = getCellFromEvent(e);
-    if (!cell) {
-      dragActionRef.current = null;
-      lastDraggedCellRef.current = null;
-      return;
-    }
-
-    const current = grid[cell.row][cell.col];
-    const nextValue = isRightClick
-      ? current === -1 ? 0 : -1
-      : current === 1 ? 0 : 1;
-
-    setHintMessage("");
-    dragActionRef.current = nextValue;
-    lastDraggedCellRef.current = `${cell.row}:${cell.col}`;
-    updateCell(cell.row, cell.col, nextValue);
-  };
-
-  const handleDrag = (e) => {
-    if (didWin) return;
-    if (dragActionRef.current === null) return;
-
-    const cell = getCellFromEvent(e);
-    if (!cell) return;
-
-    const key = `${cell.row}:${cell.col}`;
-    if (lastDraggedCellRef.current === key) return;
-
-    lastDraggedCellRef.current = key;
-    updateCell(cell.row, cell.col, dragActionRef.current);
-  };
-
-  const endDrag = () => {
-    dragActionRef.current = null;
-    lastDraggedCellRef.current = null;
-  };
-
-  const applyHint = () => {
-    if (didWin) {
-      setHintMessage("Puzzle already solved.");
-      return;
-    }
-    const hint = getHint(grid, puzzle.solution, puzzle.rowClues, puzzle.colClues);
-    if (!hint) {
-      setHintMessage("No hint available.");
-      return;
-    }
-
-    setHintMessage(hint.message ?? "Hint ready.");
-    if (typeof hint.row === "number" && typeof hint.col === "number" && typeof hint.value === "number") {
-      updateCell(hint.row, hint.col, hint.value);
-    }
-  };
-
-    /**
-     * Effect: Re-renders the Canvas whenever the grid state changes.
-     * Handles drawing squares, grid lines, and the "X" marks.
-     */
   useEffect(() => {
     setDidWin(checkWin(grid, puzzle.solution));
   }, [grid, puzzle.solution]);
@@ -156,102 +93,211 @@ export default function Nonogram({ size = 5, playerName = "" }) {
     return () => window.removeEventListener("mouseup", endDrag);
   }, []);
 
+  function endDrag() {
+    dragActionRef.current = null;
+    lastDraggedCellRef.current = null;
+  }
+
+  const getCellFromEvent = (event) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    if (x < leftGutterPx || y < topGutterPx) return null;
+
+    const row = Math.floor((y - topGutterPx) / gridSize);
+    const col = Math.floor((x - leftGutterPx) / gridSize);
+
+    if (row < 0 || col < 0 || row >= puzzle.size || col >= puzzle.size) return null;
+    return { row, col };
+  };
+
+  const updateCell = (row, col, nextValue) => {
+    setGrid((previousGrid) => {
+      if (previousGrid[row][col] === nextValue) return previousGrid;
+
+      const newGrid = [...previousGrid];
+      const newRow = [...newGrid[row]];
+      newRow[col] = nextValue;
+      newGrid[row] = newRow;
+      return applyCompletedLineMarks(newGrid, puzzle.solution);
+    });
+  };
+
+  const beginDrag = (event) => {
+    if (didWin) return;
+
+    const isRightClick = event.button === 2;
+    if (isRightClick) event.preventDefault();
+
+    const cell = getCellFromEvent(event);
+    if (!cell) {
+      endDrag();
+      return;
+    }
+
+    const currentValue = grid[cell.row][cell.col];
+    const intendedValue = isRightClick
+      ? currentValue === -1 ? 0 : -1
+      : toolMode === "fill"
+        ? currentValue === 1 ? 0 : 1
+        : currentValue === -1 ? 0 : -1;
+
+    setHintMessage("");
+    setSaveMessage("");
+    dragActionRef.current = intendedValue;
+    lastDraggedCellRef.current = `${cell.row}:${cell.col}`;
+    updateCell(cell.row, cell.col, intendedValue);
+  };
+
+  const handleDrag = (event) => {
+    if (didWin || dragActionRef.current === null) return;
+
+    const cell = getCellFromEvent(event);
+    if (!cell) return;
+
+    const key = `${cell.row}:${cell.col}`;
+    if (lastDraggedCellRef.current === key) return;
+
+    lastDraggedCellRef.current = key;
+    updateCell(cell.row, cell.col, dragActionRef.current);
+  };
+
+  const applyHint = () => {
+    if (didWin) {
+      setHintMessage("Puzzle already solved.");
+      return;
+    }
+
+    if (hintsRemaining !== null && hintsRemaining <= 0) {
+      setHintMessage("No hints left.");
+      return;
+    }
+
+    const hint = getHint(grid, puzzle.solution, puzzle.rowClues, puzzle.colClues);
+    if (!hint) {
+      setHintMessage("No hint available.");
+      return;
+    }
+
+    setHintMessage(hint.message ?? "Hint ready.");
+    setSaveMessage("");
+    setHintsUsed((current) => current + 1);
+    if (typeof hint.row === "number" && typeof hint.col === "number" && typeof hint.value === "number") {
+      updateCell(hint.row, hint.col, hint.value);
+    }
+  };
+
+  const saveGame = () => {
+    const snapshot = {
+      playerName,
+      size,
+      hintLimit: hintCap,
+      hintsUsed,
+      elapsedSeconds,
+      toolMode,
+      grid,
+      puzzle,
+      savedAt: new Date().toISOString(),
+    };
+    window.localStorage.setItem("nonogrammer-save", JSON.stringify(snapshot));
+    setHintMessage("");
+    setSaveMessage("Saved locally.");
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
 
+    const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Background
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw clue gutters background
-    ctx.fillStyle = "#f6f6f6";
+    ctx.fillStyle = "#f7f7f7";
     ctx.fillRect(0, 0, canvas.width, topGutterPx);
     ctx.fillRect(0, 0, leftGutterPx, canvas.height);
 
-    // Draw clues
-    ctx.fillStyle = "black";
-    ctx.font = "16px sans-serif";
+    ctx.fillStyle = "#111111";
+    ctx.font = `${Math.max(12, Math.floor(gridSize * 0.48))}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    // Column clues (top gutter)
-    for (let c = 0; c < puzzle.size; c += 1) {
-      const clues = puzzle.colClues[c];
+    for (let colIndex = 0; colIndex < puzzle.size; colIndex += 1) {
+      const clues = puzzle.colClues[colIndex];
       const startRow = maxColClues - clues.length;
-      const isComplete = completedLines.completedCols[c];
-      for (let i = 0; i < clues.length; i += 1) {
-        const gutterRow = startRow + i;
-        const cx = leftGutterPx + c * GRID_SIZE + GRID_SIZE / 2;
-        const cy = gutterRow * GRID_SIZE + GRID_SIZE / 2;
-        ctx.fillStyle = isComplete ? "#0f766e" : "black";
-        ctx.fillText(String(clues[i]), cx, cy);
+      const isComplete = completedLines.completedCols[colIndex];
+
+      for (let clueIndex = 0; clueIndex < clues.length; clueIndex += 1) {
+        const gutterRow = startRow + clueIndex;
+        const x = leftGutterPx + colIndex * gridSize + gridSize / 2;
+        const y = gutterRow * gridSize + gridSize / 2;
+        ctx.fillStyle = isComplete ? "#0f766e" : "#111111";
+        ctx.fillText(String(clues[clueIndex]), x, y);
       }
     }
 
-    // Row clues (left gutter)
-    for (let r = 0; r < puzzle.size; r += 1) {
-      const clues = puzzle.rowClues[r];
+    for (let rowIndex = 0; rowIndex < puzzle.size; rowIndex += 1) {
+      const clues = puzzle.rowClues[rowIndex];
       const startCol = maxRowClues - clues.length;
-      const isComplete = completedLines.completedRows[r];
-      for (let i = 0; i < clues.length; i += 1) {
-        const gutterCol = startCol + i;
-        const cx = gutterCol * GRID_SIZE + GRID_SIZE / 2;
-        const cy = topGutterPx + r * GRID_SIZE + GRID_SIZE / 2;
-        ctx.fillStyle = isComplete ? "#0f766e" : "black";
-        ctx.fillText(String(clues[i]), cx, cy);
+      const isComplete = completedLines.completedRows[rowIndex];
+
+      for (let clueIndex = 0; clueIndex < clues.length; clueIndex += 1) {
+        const gutterCol = startCol + clueIndex;
+        const x = gutterCol * gridSize + gridSize / 2;
+        const y = topGutterPx + rowIndex * gridSize + gridSize / 2;
+        ctx.fillStyle = isComplete ? "#0f766e" : "#111111";
+        ctx.fillText(String(clues[clueIndex]), x, y);
       }
     }
 
-    // Gutter grid lines
-    ctx.strokeStyle = "#d0d0d0";
+    ctx.strokeStyle = "#d4d4d4";
     ctx.lineWidth = 1;
-    for (let x = 0; x <= canvasWidth; x += GRID_SIZE) {
+    for (let x = 0; x <= canvasWidth; x += gridSize) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, topGutterPx);
       ctx.stroke();
     }
-    for (let y = 0; y <= canvasHeight; y += GRID_SIZE) {
+    for (let y = 0; y <= canvasHeight; y += gridSize) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(leftGutterPx, y);
       ctx.stroke();
     }
 
-    // Draw playable grid
-    grid.forEach((row, r) => {
-      row.forEach((cell, c) => {
-        const x = leftGutterPx + c * GRID_SIZE;
-        const y = topGutterPx + r * GRID_SIZE;
-        const isLineComplete = completedLines.completedRows[r] || completedLines.completedCols[c];
+    grid.forEach((row, rowIndex) => {
+      row.forEach((cell, colIndex) => {
+        const x = leftGutterPx + colIndex * gridSize;
+        const y = topGutterPx + rowIndex * gridSize;
+        const isLineComplete = completedLines.completedRows[rowIndex] || completedLines.completedCols[colIndex];
 
-        ctx.fillStyle = cell === 1 ? "black" : isLineComplete ? "#f2fbf8" : "white";
-        ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
+        ctx.fillStyle = cell === 1 ? "#111111" : isLineComplete ? "#f4fcf8" : "#ffffff";
+        ctx.fillRect(x, y, gridSize, gridSize);
 
         if (cell === -1) {
-          ctx.strokeStyle = "black";
+          ctx.strokeStyle = "#111111";
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(x + LINE_PADDING, y + LINE_PADDING);
-          ctx.lineTo(x + GRID_SIZE - LINE_PADDING, y + GRID_SIZE - LINE_PADDING);
-          ctx.moveTo(x + GRID_SIZE - LINE_PADDING, y + LINE_PADDING);
-          ctx.lineTo(x + LINE_PADDING, y + GRID_SIZE - LINE_PADDING);
+          ctx.lineTo(x + gridSize - LINE_PADDING, y + gridSize - LINE_PADDING);
+          ctx.moveTo(x + gridSize - LINE_PADDING, y + LINE_PADDING);
+          ctx.lineTo(x + LINE_PADDING, y + gridSize - LINE_PADDING);
           ctx.stroke();
         }
 
-        ctx.strokeStyle = "gray";
+        ctx.strokeStyle = "#111111";
         ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, GRID_SIZE, GRID_SIZE);
+        ctx.strokeRect(x, y, gridSize, gridSize);
       });
     });
 
-    // Separator lines between gutters and grid
-    ctx.strokeStyle = "#888";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#111111";
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.moveTo(leftGutterPx, 0);
     ctx.lineTo(leftGutterPx, canvasHeight);
@@ -261,48 +307,174 @@ export default function Nonogram({ size = 5, playerName = "" }) {
     ctx.lineTo(canvasWidth, topGutterPx);
     ctx.stroke();
   }, [
+    canvasHeight,
+    canvasWidth,
+    completedLines,
     grid,
+    gridSize,
+    leftGutterPx,
+    maxColClues,
+    maxRowClues,
     puzzle.colClues,
     puzzle.rowClues,
     puzzle.size,
-    canvasHeight,
-    canvasWidth,
-    leftGutterPx,
     topGutterPx,
-    maxColClues,
-    maxRowClues,
-    completedLines,
   ]);
 
+  const panelButtonStyle = (isActive) => ({
+    border: "none",
+    borderRadius: 999,
+    padding: "10px 22px",
+    fontWeight: 800,
+    fontSize: 16,
+    cursor: "pointer",
+    background: isActive ? "#0f6fc7" : hoveredButton === "use" ? "#ececec" : "#ffffff",
+    color: isActive ? "#ffffff" : "#111111",
+    boxShadow: "inset 0 -2px 0 rgba(0, 0, 0, 0.12)",
+    transition: "background-color 0.12s ease",
+  });
+
+  const actionButtonStyle = (buttonId) => ({
+    width: "100%",
+    border: "none",
+    borderRadius: 18,
+    padding: "14px 16px",
+    background: hoveredButton === buttonId ? "#e3b11f" : "#ffca2c",
+    color: "#111111",
+    fontWeight: 800,
+    fontSize: 18,
+    cursor: "pointer",
+    boxShadow: "inset 0 -2px 0 rgba(0, 0, 0, 0.12)",
+    transition: "background-color 0.12s ease",
+  });
+
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        {playerName ? <span style={{ fontWeight: 700 }}>Player: {playerName}</span> : null}
-        <button type="button" onClick={applyHint}>
-          Hint
+    <section
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        gap: 28,
+        alignItems: "start",
+      }}
+    >
+      <div style={{ display: "grid", justifyItems: "center", gap: 12 }}>
+        <div
+          style={{
+            padding: 18,
+            borderRadius: 18,
+            background: "#ffffff",
+            boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)",
+            overflow: "auto",
+            maxWidth: "100%",
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            width={canvasWidth}
+            height={canvasHeight}
+            onMouseDown={beginDrag}
+            onMouseMove={handleDrag}
+            onMouseUp={endDrag}
+            onMouseLeave={endDrag}
+            onContextMenu={(event) => event.preventDefault()}
+            aria-label="Nonogram Grid"
+            aria-disabled={didWin}
+            style={{ cursor: didWin ? "default" : "crosshair", display: "block" }}
+          />
+        </div>
+        <p style={{ fontSize: 14, color: "#5b6473", textAlign: "center" }}>
+          Left click uses the selected tool. Right click always places a cross.
+        </p>
+      </div>
+
+      <aside
+        style={{
+          display: "grid",
+          gap: 18,
+          padding: "28px 22px",
+          borderRadius: 22,
+          background: "#d7f1ff",
+          boxShadow: "0 18px 40px rgba(56, 189, 248, 0.18)",
+        }}
+      >
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "baseline" }}>
+            <strong style={{ fontSize: 22, color: "#111111" }}>Player:</strong>
+            <span style={{ color: "#5b6473", fontSize: 18 }}>{playerName || "Your Username..."}</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 8, alignItems: "baseline" }}>
+            <strong style={{ fontSize: 22, color: "#111111" }}>Time:</strong>
+            <span style={{ color: "#5b6473", fontSize: 18 }}>{formatTime(elapsedSeconds)}</span>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gap: 10 }}>
+            <strong style={{ fontSize: 22, color: "#111111" }}>Mode</strong>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setToolMode("fill")}
+                style={panelButtonStyle(toolMode === "fill")}
+              >
+                F
+              </button>
+              <button
+                type="button"
+                onClick={() => setToolMode("cross")}
+                style={panelButtonStyle(toolMode === "cross")}
+              >
+                C
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 10 }}>
+            <strong style={{ fontSize: 22, color: "#111111" }}>Hints</strong>
+            <span style={{ color: "#5b6473", fontSize: 16 }}>
+              {hintCap === null ? "Unlimited hints" : `${hintsRemaining}/${hintCap}`}
+            </span>
+            <button
+              type="button"
+              onClick={applyHint}
+              disabled={didWin || hintsRemaining === 0}
+              onMouseEnter={() => setHoveredButton("use")}
+              onMouseLeave={() => setHoveredButton(null)}
+              style={{
+                ...panelButtonStyle(false),
+                opacity: didWin || hintsRemaining === 0 ? 0.55 : 1,
+                cursor: didWin || hintsRemaining === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              Use
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={saveGame}
+          onMouseEnter={() => setHoveredButton("save")}
+          onMouseLeave={() => setHoveredButton(null)}
+          style={actionButtonStyle("save")}
+        >
+          Save game (Local)
         </button>
-        <span aria-live="polite" style={{ fontWeight: 700 }}>
-          {didWin ? "You win!" : ""}
-        </span>
-      </div>
 
-      <div aria-live="polite" style={{ minHeight: 24, fontWeight: 600 }}>
-        {hintMessage}
-      </div>
+        <button
+          type="button"
+          onClick={onAbandon}
+          onMouseEnter={() => setHoveredButton("abandon")}
+          onMouseLeave={() => setHoveredButton(null)}
+          style={actionButtonStyle("abandon")}
+        >
+          Abandon
+        </button>
 
-      <canvas
-        ref={canvasRef}
-        width={canvasWidth}
-        height={canvasHeight}
-        onMouseDown={beginDrag}
-        onMouseMove={handleDrag}
-        onMouseUp={endDrag}
-        onMouseLeave={endDrag}
-        onContextMenu={(e) => e.preventDefault()}
-        aria-label="Nonogram Grid"
-        aria-disabled={didWin}
-        style={{ cursor: didWin ? "default" : "crosshair" }}
-      />
-    </div>
+        <div aria-live="polite" style={{ minHeight: 44, fontWeight: 700, color: didWin ? "#0f766e" : "#374151" }}>
+          {didWin ? "You win!" : hintMessage || saveMessage}
+        </div>
+      </aside>
+    </section>
   );
 }

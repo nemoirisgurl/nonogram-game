@@ -22,10 +22,10 @@ const fieldStyle = {
   outline: "none",
 };
 
-export default function GameSetup({ initialName = "", initialSize = 5, onStart }) {
+export default function GameSetup({ initialName = "", initialSize = 5, initialHintLimit = null, onStart }) {
   const [name, setName] = useState(initialName);
   const [size, setSize] = useState(initialSize);
-  const [hint, setHint] = useState("");
+  const [hint, setHint] = useState(initialHintLimit ?? "");
   const [isStartHovered, setIsStartHovered] = useState(false);
 
   const sizeOptions = useMemo(() => [5, 10, 15, 20], []);
@@ -39,7 +39,11 @@ export default function GameSetup({ initialName = "", initialSize = 5, onStart }
         onSubmit={(e) => {
           e.preventDefault();
           if (!canStart) return;
-          onStart?.({ playerName: name.trim(), size });
+          onStart?.({
+            playerName: name.trim(),
+            size,
+            hintLimit: hint === "" ? null : Math.max(0, Number(hint)),
+          });
         }}
         style={{
           margin: 24,
