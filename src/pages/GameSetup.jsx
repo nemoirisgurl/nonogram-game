@@ -26,6 +26,7 @@ export default function GameSetup({ initialName = "", initialSize = 5, onStart }
   const [name, setName] = useState(initialName);
   const [size, setSize] = useState(initialSize);
   const [hint, setHint] = useState("");
+  const [isStartHovered, setIsStartHovered] = useState(false);
 
   const sizeOptions = useMemo(() => [5, 10, 15, 20], []);
   const canStart = name.trim().length > 0 && Number.isFinite(size) && size > 0;
@@ -112,17 +113,21 @@ export default function GameSetup({ initialName = "", initialSize = 5, onStart }
             <button
               type="submit"
               disabled={!canStart}
+              onMouseEnter={() => setIsStartHovered(true)}
+              onMouseLeave={() => setIsStartHovered(false)}
               style={{
                 justifySelf: "start",
                 padding: "12px 18px",
                 borderRadius: 999,
                 border: "none",
-                background: canStart ? "#ffca2c" : "#f1d88a",
+                background: canStart ? (isStartHovered ? "#e3b11f" : "#ffca2c") : "#f1d88a",
                 color: "#111111",
                 fontWeight: 800,
                 fontSize: 16,
                 cursor: canStart ? "pointer" : "not-allowed",
                 boxShadow: "inset 0 -2px 0 rgba(0, 0, 0, 0.12)",
+                transform: canStart ? "scale(1.02)" : "none",
+                transition: "transform 0.1s ease, background-color 0.1s ease",
               }}
             >
               Start the game!

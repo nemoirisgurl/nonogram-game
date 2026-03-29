@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Navbar from "../component/navbar";
 
 const shellStyle = {
@@ -36,6 +37,8 @@ const actionStyle = {
 };
 
 export default function Home() {
+  const [hoveredAction, setHoveredAction] = useState(null);
+
   return (
     <section style={shellStyle}>
       <Navbar />
@@ -60,7 +63,12 @@ export default function Home() {
               Solve challenging nonogram puzzles with logic and precision. Sharpen your mind with
               pixel-perfect logic games.
             </p>
-            <a href="#/play" style={actionStyle}>
+            <a
+              href="#/play"
+              style={{ ...actionStyle, background: hoveredAction === "play" ? "#e3b11f" : "#ffca2c" }}
+              onMouseEnter={() => setHoveredAction("play")}
+              onMouseLeave={() => setHoveredAction(null)}
+            >
               Play
             </a>
           </article>
@@ -71,7 +79,12 @@ export default function Home() {
               Need solution right away? We can show its solution by just input your clues and constraints. It
               will solve for you in seconds.
             </p>
-            <a href="#/solver" style={actionStyle}>
+            <a
+              href="#/solver"
+              style={{ ...actionStyle, background: hoveredAction === "solver" ? "#e3b11f" : "#ffca2c" }}
+              onMouseEnter={() => setHoveredAction("solver")}
+              onMouseLeave={() => setHoveredAction(null)}
+            >
               Go to Solver
             </a>
           </article>
