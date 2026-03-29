@@ -28,6 +28,12 @@ function App() {
     return () => window.removeEventListener("hashchange", syncRoute);
   }, []);
 
+  useEffect(() => {
+    if (route !== "#/play") {
+      setIsInGame(false);
+    }
+  }, [route]);
+
   const renderPage = () => {
     if (route === "#/solver") {
       return <Solver />;
@@ -45,9 +51,21 @@ function App() {
           }}
         />
       ) : (
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <button type="button" onClick={() => setIsInGame(false)}>
+        <div style={{ display: "grid", gap: 16, width: "min(960px, 100%)" }}>
+          <div style={{ display: "flex", justifyContent: "flex-start" }}>
+            <button
+              type="button"
+              onClick={() => setIsInGame(false)}
+              style={{
+                padding: "10px 16px",
+                borderRadius: 999,
+                border: "1px solid rgba(15, 23, 42, 0.14)",
+                background: "#ffffff",
+                color: "#111111",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
               Change player / size
             </button>
           </div>
@@ -56,43 +74,10 @@ function App() {
       );
     }
 
-    return (
-      <div style={{ display: "grid", gap: 16 }}>
-        <Home />
-        <p style={{ margin: 0 }}>
-          Use the navigation above to start a puzzle or open the solver with custom row and column clues.
-        </p>
-      </div>
-    );
+    return <Home />;
   };
 
-  return (
-    <section id="center">
-      <nav
-        aria-label="Primary"
-        style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}
-      >
-        {routes.map((item) => (
-          <a
-            key={item.hash}
-            href={item.hash}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 999,
-              textDecoration: "none",
-              border: "1px solid var(--border)",
-              color: route === item.hash ? "white" : "var(--text-h)",
-              background: route === item.hash ? "var(--accent)" : "transparent",
-            }}
-          >
-            {item.label}
-          </a>
-        ))}
-      </nav>
-
-      {renderPage()}
-    </section>
-  );
+  return <section id="center">{renderPage()}</section>;
 }
 
 export default App;
