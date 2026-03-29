@@ -32,8 +32,11 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
   const [toolMode, setToolMode] = useState("fill");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
+  const [lockedCells, setLockedCells] = useState(() => new Set());
   const [saveMessage, setSaveMessage] = useState("");
   const [hoveredButton, setHoveredButton] = useState(null);
+  const [isUseHovered, setIsUseHovered] = useState(false);
+  const [isCrossHovered, setIsCrossHovered] = useState(false);
   const maxRowClues = Math.max(...puzzle.rowClues.map((clue) => clue.length));
   const maxColClues = Math.max(...puzzle.colClues.map((clue) => clue.length));
   const maxBoardWidth = Math.min(viewportSize.w * 0.52, 620);
@@ -70,6 +73,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
     setHintMessage("");
     setElapsedSeconds(0);
     setHintsUsed(0);
+    setLockedCells(new Set());
     setSaveMessage("");
     setToolMode("fill");
     dragActionRef.current = null;
@@ -116,6 +120,8 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
   };
 
   const updateCell = (row, col, nextValue) => {
+    if (lockedCells.has(`${row}:${col}`)) return;
+
     setGrid((previousGrid) => {
       if (previousGrid[row][col] === nextValue) return previousGrid;
 
@@ -124,6 +130,24 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
       newRow[col] = nextValue;
       newGrid[row] = newRow;
       return applyCompletedLineMarks(newGrid, puzzle.solution);
+    });
+  };
+
+  const applyLockedCell = (row, col, nextValue) => {
+    setGrid((previousGrid) => {
+      if (previousGrid[row][col] === nextValue) return previousGrid;
+
+      const newGrid = [...previousGrid];
+      const newRow = [...newGrid[row]];
+      newRow[col] = nextValue;
+      newGrid[row] = newRow;
+      return applyCompletedLineMarks(newGrid, puzzle.solution);
+    });
+
+    setLockedCells((current) => {
+      const next = new Set(current);
+      next.add(`${row}:${col}`);
+      return next;
     });
   };
 
@@ -140,6 +164,10 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
     }
 
     const currentValue = grid[cell.row][cell.col];
+    if (lockedCells.has(`${cell.row}:${cell.col}`)) {
+      endDrag();
+      return;
+    }
     const intendedValue = isRightClick
       ? currentValue === -1 ? 0 : -1
       : toolMode === "fill"
@@ -187,7 +215,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
     setSaveMessage("");
     setHintsUsed((current) => current + 1);
     if (typeof hint.row === "number" && typeof hint.col === "number" && typeof hint.value === "number") {
-      updateCell(hint.row, hint.col, hint.value);
+      applyLockedCell(hint.row, hint.col, hint.value);
     }
   };
 
@@ -197,6 +225,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
       size,
       hintLimit: hintCap,
       hintsUsed,
+      lockedCells: Array.from(lockedCells),
       elapsedSeconds,
       toolMode,
       grid,
@@ -223,7 +252,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
     ctx.fillRect(0, 0, leftGutterPx, canvas.height);
 
     ctx.fillStyle = "#111111";
-    ctx.font = `${Math.max(12, Math.floor(gridSize * 0.48))}px sans-serif`;
+    ctx.font = `700 ${Math.max(12, Math.floor(gridSize * 0.48))}px "Segoe UI", Roboto, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -328,7 +357,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
     fontWeight: 800,
     fontSize: 16,
     cursor: "pointer",
-    background: isActive ? "#0f6fc7" : hoveredButton === "use" ? "#ececec" : "#ffffff",
+    background: isActive ? "#0f6fc7" : "#ffffff",
     color: isActive ? "#ffffff" : "#111111",
     boxShadow: "inset 0 -2px 0 rgba(0, 0, 0, 0.12)",
     transition: "background-color 0.12s ease",
@@ -422,7 +451,9 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
               <button
                 type="button"
                 onClick={() => setToolMode("cross")}
-                style={panelButtonStyle(toolMode === "cross")}
+                onMouseEnter={() => setIsCrossHovered(true)}
+                onMouseLeave={() => setIsCrossHovered(false)}
+                style={{...panelButtonStyle(toolMode === "cross"), background: toolMode === "cross" ?  "#0f67c7": isCrossHovered ? "#f0f0f0" : "#ffffff"}}
               >
                 C
               </button>
@@ -438,10 +469,11 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
               type="button"
               onClick={applyHint}
               disabled={didWin || hintsRemaining === 0}
-              onMouseEnter={() => setHoveredButton("use")}
-              onMouseLeave={() => setHoveredButton(null)}
+              onMouseEnter={() => setIsUseHovered("use")}
+              onMouseLeave={() => setIsUseHovered(null)}
               style={{
                 ...panelButtonStyle(false),
+                background: isUseHovered ? "#ececec" : "#ffffff",
                 opacity: didWin || hintsRemaining === 0 ? 0.55 : 1,
                 cursor: didWin || hintsRemaining === 0 ? "not-allowed" : "pointer",
               }}
@@ -458,7 +490,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
           onMouseLeave={() => setHoveredButton(null)}
           style={actionButtonStyle("save")}
         >
-          Save game (Local)
+          Save game (WIP)
         </button>
 
         <button
