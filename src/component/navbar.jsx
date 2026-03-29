@@ -27,7 +27,7 @@ export default function Navbar() {
     <header style={topBarStyle}>
       <a href="#/" aria-label="Go to home" style={brandStyle}>
         <img
-          src="src/assets/logo.png"
+          src="/logo.png"
           alt="Nonogrammer logo"
           style={{ width: 36, height: 36, objectFit: "contain", flexShrink: 0 }}
         />
