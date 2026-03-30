@@ -20,7 +20,276 @@ function formatTime(totalSeconds) {
   return `${minutes}:${seconds}`;
 }
 
-export default function Nonogram({ size = 5, playerName = "", hintLimit = null, onAbandon }) {
+function SolverBoard({
+  size,
+  grid,
+  rowClues,
+  colClues,
+  onCellToggle,
+  onRowClueChange,
+  onColClueChange,
+}) {
+  const clueDepth = Math.max(1, Math.ceil(size / 2));
+  const safeGrid = Array.from({ length: size }, (_, rowIndex) =>
+    Array.from({ length: size }, (_, colIndex) => grid?.[rowIndex]?.[colIndex] ?? 0),
+  );
+  const safeRowClues = Array.from({ length: size }, (_, rowIndex) =>
+    Array.from({ length: clueDepth }, (_, clueIndex) => rowClues?.[rowIndex]?.[clueIndex] ?? ""),
+  );
+  const safeColClues = Array.from({ length: size }, (_, colIndex) =>
+    Array.from({ length: clueDepth }, (_, clueIndex) => colClues?.[colIndex]?.[clueIndex] ?? ""),
+  );
+  const cellSize = size >= 15 ? 26 : size >= 10 ? 32 : 44;
+  const gutterSize = Math.max(32, cellSize - 2);
+  const totalColumns = clueDepth + size;
+
+  const clueInputStyle = {
+    width: "100%",
+    height: "100%",
+    border: "none",
+    outline: "none",
+    textAlign: "center",
+    fontSize: Math.max(12, Math.floor(cellSize * 0.34)),
+    fontWeight: 700,
+    color: "#111111",
+    background: "transparent",
+    padding: 0,
+  };
+
+  const focusClueInput = (kind, primaryIndex, secondaryIndex) => {
+    const selector = [
+      'input[data-clue-kind="',
+      kind,
+      '"][data-primary-index="',
+      String(primaryIndex),
+      '"][data-secondary-index="',
+      String(secondaryIndex),
+      '"]',
+    ].join("");
+    const nextInput = document.querySelector(selector);
+    if (nextInput instanceof HTMLInputElement) {
+      nextInput.focus();
+      nextInput.select();
+    }
+  };
+
+  const handleClueKeyDown = (event, kind, primaryIndex, secondaryIndex) => {
+    const key = event.key.toLowerCase();
+    let nextPrimaryIndex = primaryIndex;
+    let nextSecondaryIndex = secondaryIndex;
+
+    if (key === "arrowup" || key === "w") {
+      nextPrimaryIndex = kind === "row" ? primaryIndex - 1 : primaryIndex;
+      nextSecondaryIndex = kind === "row" ? secondaryIndex : secondaryIndex - 1;
+    } else if (key === "arrowdown" || key === "s") {
+      nextPrimaryIndex = kind === "row" ? primaryIndex + 1 : primaryIndex;
+      nextSecondaryIndex = kind === "row" ? secondaryIndex : secondaryIndex + 1;
+    } else if (key === "arrowleft" || key === "a") {
+      nextPrimaryIndex = kind === "row" ? primaryIndex : primaryIndex - 1;
+      nextSecondaryIndex = kind === "row" ? secondaryIndex - 1 : secondaryIndex;
+    } else if (key === "arrowright" || key === "d") {
+      nextPrimaryIndex = kind === "row" ? primaryIndex : primaryIndex + 1;
+      nextSecondaryIndex = kind === "row" ? secondaryIndex + 1 : secondaryIndex;
+    } else {
+      return;
+    }
+
+    const maxPrimaryIndex = size - 1;
+    const maxSecondaryIndex = clueDepth - 1;
+    if (
+      nextPrimaryIndex < 0 ||
+      nextSecondaryIndex < 0 ||
+      nextPrimaryIndex > maxPrimaryIndex ||
+      nextSecondaryIndex > maxSecondaryIndex
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    focusClueInput(kind, nextPrimaryIndex, nextSecondaryIndex);
+  };
+
+  const getGridBorderRight = (columnIndex) => {
+    if (columnIndex === totalColumns - 1) return "none";
+    const boardColumnIndex = columnIndex - clueDepth + 1;
+    if (boardColumnIndex > 0 && boardColumnIndex % 5 === 0) return "2px solid #111111";
+    return "1px solid #111111";
+  };
+
+  const getGridBorderBottom = (rowIndex) => {
+    if (rowIndex === size - 1) return "none";
+    if ((rowIndex + 1) % 5 === 0) return "2px solid #111111";
+    return "1px solid #111111";
+  };
+
+  return (
+    <div
+      style={{
+        padding: "clamp(10px, 3vw, 18px)",
+        borderRadius: "clamp(14px, 3vw, 18px)",
+        background: "#ffffff",
+        boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)",
+        overflow: "auto",
+        maxWidth: "100%",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${totalColumns}, minmax(${gutterSize}px, ${cellSize}px))`,
+          gridAutoRows: `minmax(${gutterSize}px, ${cellSize}px)`,
+          width: "fit-content",
+          background: "#ffffff",
+          border: "1px solid #d4d4d4",
+        }}
+      >
+        {Array.from({ length: clueDepth }).flatMap((_, gutterRow) =>
+          Array.from({ length: totalColumns }, (_, columnIndex) => {
+            if (columnIndex < clueDepth) {
+              return (
+                <div
+                  key={`corner-${gutterRow}-${columnIndex}`}
+                  style={{
+                    borderRight: "1px solid #d4d4d4",
+                    borderBottom: "1px solid #d4d4d4",
+                    background: "#f7f7f7",
+                  }}
+                />
+              );
+            }
+
+            const colIndex = columnIndex - clueDepth;
+            const value = safeColClues[colIndex][gutterRow];
+
+            return (
+              <div
+                key={`col-clue-${gutterRow}-${columnIndex}`}
+                style={{
+                  borderRight: getGridBorderRight(columnIndex).replace("#111111", "#d4d4d4"),
+                  borderBottom: gutterRow === clueDepth - 1 ? "2px solid #111111" : "1px solid #d4d4d4",
+                  background: "#f7f7f7",
+                }}
+              >
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={value}
+                  onChange={(event) => onColClueChange?.(colIndex, gutterRow, event.target.value)}
+                  onKeyDown={(event) => handleClueKeyDown(event, "col", colIndex, gutterRow)}
+                  style={clueInputStyle}
+                  data-clue-kind="col"
+                  data-primary-index={colIndex}
+                  data-secondary-index={gutterRow}
+                  aria-label={`Column ${colIndex + 1} clue ${gutterRow + 1}`}
+                />
+              </div>
+            );
+          }),
+        )}
+
+        {Array.from({ length: size }).flatMap((_, rowIndex) =>
+          Array.from({ length: totalColumns }, (_, columnIndex) => {
+            if (columnIndex < clueDepth) {
+              const value = safeRowClues[rowIndex][columnIndex];
+
+              return (
+                <div
+                  key={`row-clue-${rowIndex}-${columnIndex}`}
+                  style={{
+                    borderRight: columnIndex === clueDepth - 1 ? "2px solid #111111" : "1px solid #d4d4d4",
+                    borderBottom: getGridBorderBottom(rowIndex).replace("#111111", "#d4d4d4"),
+                    background: "#f7f7f7",
+                  }}
+                >
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={value}
+                    onChange={(event) => onRowClueChange?.(rowIndex, columnIndex, event.target.value)}
+                    onKeyDown={(event) => handleClueKeyDown(event, "row", rowIndex, columnIndex)}
+                    style={clueInputStyle}
+                    data-clue-kind="row"
+                    data-primary-index={rowIndex}
+                    data-secondary-index={columnIndex}
+                    aria-label={`Row ${rowIndex + 1} clue ${columnIndex + 1}`}
+                  />
+                </div>
+              );
+            }
+
+            const colIndex = columnIndex - clueDepth;
+            const cell = safeGrid[rowIndex][colIndex];
+
+            return (
+              <button
+                key={`solver-cell-${rowIndex}-${colIndex}`}
+                type="button"
+                onClick={() => onCellToggle?.(rowIndex, colIndex)}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                  borderRight: getGridBorderRight(columnIndex),
+                  borderBottom: getGridBorderBottom(rowIndex),
+                  background: cell === 1 ? "#111111" : "#ffffff",
+                  cursor: "pointer",
+                  position: "relative",
+                  padding: 0,
+                }}
+                aria-label={`Solver row ${rowIndex + 1}, column ${colIndex + 1}`}
+              >
+                {cell === -1 ? (
+                  <span
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "grid",
+                      placeItems: "center",
+                      color: "#111111",
+                      fontSize: Math.max(12, Math.floor(cellSize * 0.45)),
+                      fontWeight: 700,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </span>
+                ) : null}
+              </button>
+            );
+          }),
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Nonogram({
+  mode = "game",
+  size = 5,
+  playerName = "",
+  hintLimit = null,
+  onAbandon,
+  grid: controlledGrid,
+  rowClues: controlledRowClues,
+  colClues: controlledColClues,
+  onCellToggle,
+  onRowClueChange,
+  onColClueChange,
+}) {
+  if (mode === "solver") {
+    return (
+      <SolverBoard
+        size={size}
+        grid={controlledGrid}
+        rowClues={controlledRowClues}
+        colClues={controlledColClues}
+        onCellToggle={onCellToggle}
+        onRowClueChange={onRowClueChange}
+        onColClueChange={onColClueChange}
+      />
+    );
+  }
+
   const canvasRef = useRef(null);
   const dragActionRef = useRef(null);
   const lastDraggedCellRef = useRef(null);
@@ -286,14 +555,17 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
     }
 
     ctx.strokeStyle = "#d4d4d4";
-    ctx.lineWidth = 1;
     for (let x = 0; x <= canvasWidth; x += gridSize) {
+      const columnIndex = x / gridSize;
+      ctx.lineWidth = columnIndex > maxRowClues && (columnIndex - maxRowClues) % 5 === 0 ? 2 : 1;
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, topGutterPx);
       ctx.stroke();
     }
     for (let y = 0; y <= canvasHeight; y += gridSize) {
+      const rowIndex = y / gridSize;
+      ctx.lineWidth = rowIndex > maxColClues && (rowIndex - maxColClues) % 5 === 0 ? 2 : 1;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(leftGutterPx, y);
@@ -321,7 +593,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
         }
 
         ctx.strokeStyle = "#111111";
-        ctx.lineWidth = 1;
+        ctx.lineWidth = (colIndex + 1) % 5 === 0 || (rowIndex + 1) % 5 === 0 ? 2 : 1;
         ctx.strokeRect(x, y, gridSize, gridSize);
       });
     });
@@ -454,7 +726,7 @@ export default function Nonogram({ size = 5, playerName = "", hintLimit = null, 
                 onClick={() => setToolMode("cross")}
                 onMouseEnter={() => setIsCrossHovered(true)}
                 onMouseLeave={() => setIsCrossHovered(false)}
-                style={{...panelButtonStyle(toolMode === "cross"), background: toolMode === "cross" ?  "#0f67c7": isCrossHovered ? "#f0f0f0" : "#ffffff"}}
+                style={{ ...panelButtonStyle(toolMode === "cross"), background: toolMode === "cross" ? "#0f67c7" : isCrossHovered ? "#f0f0f0" : "#ffffff" }}
               >
                 C
               </button>
