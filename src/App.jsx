@@ -4,8 +4,9 @@ import Home from "./pages/Home";
 import Game from "./pages/Game";
 import GameSetup from "./pages/GameSetup";
 import Solver from "./pages/Solver";
+import Profile from "./pages/Profile";
 
-const routes = ["#/", "#/play", "#/game", "#/solver"];
+const routes = ["#/", "#/play", "#/game", "#/solver", "#/profile"];
 
 function getRouteFromHash() {
   const hash = window.location.hash || "#/";
@@ -55,6 +56,10 @@ function App() {
 
     if (route === "#/play") {
       return <GameSetup initialName={playerName} initialSize={size} initialHintLimit={hintLimit} onStart={startGame} />;
+    }
+
+    if (route === "#/profile") {
+      return <Profile />;
     }
 
     return <Home />;
