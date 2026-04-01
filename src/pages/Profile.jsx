@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Navbar from "../component/navbar";
-import AvatarIcon from "../component/avataricon";
+import AvatarIcon from "../component/avatarIcon";
 import { supabase } from "../lib/supabase";
 
 const shellStyle = {
