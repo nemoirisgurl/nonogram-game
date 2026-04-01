@@ -1,4 +1,5 @@
 import logo from "/logo.png";
+import AvatarIcon from "./avatarIcon";
 const topBarStyle = {
   display: "flex",
   alignItems: "center",
@@ -54,6 +55,9 @@ export default function Navbar() {
         </a>
         <a href="#/solver" style={linkStyle}>
           Solver
+        </a>
+        <a href="#/profile" style={linkStyle}>
+          <AvatarIcon style={{ width: "clamp(32px, 5vw, 40px)", height: "clamp(32px, 5vw, 40px)" }} />
         </a>
       </nav>
     </header>
