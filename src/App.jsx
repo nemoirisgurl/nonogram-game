@@ -5,8 +5,11 @@ import Game from "./pages/Game";
 import GameSetup from "./pages/GameSetup";
 import Solver from "./pages/Solver";
 import Profile from "./pages/Profile";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
-const routes = ["#/", "#/play", "#/game", "#/solver", "#/profile"];
+const routes = ["#/", "#/play", "#/game", "#/solver", "#/profile", "#/login", "#/register"];
+const storageKey = "nonogram-auth-user";
 
 function getRouteFromHash() {
   const hash = window.location.hash || "#/";
@@ -19,6 +22,20 @@ function App() {
   const [size, setSize] = useState(5);
   const [hintLimit, setHintLimit] = useState(null);
   const [isInGame, setIsInGame] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = window.localStorage.getItem(storageKey);
+
+    if (!savedUser) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(savedUser);
+    } catch {
+      window.localStorage.removeItem(storageKey);
+      return null;
+    }
+  });
 
   useEffect(() => {
     const syncRoute = () => setRoute(getRouteFromHash());
@@ -31,6 +48,15 @@ function App() {
       window.location.hash = "#/play";
     }
   }, [route, isInGame]);
+
+  useEffect(() => {
+    if (currentUser) {
+      window.localStorage.setItem(storageKey, JSON.stringify(currentUser));
+      return;
+    }
+
+    window.localStorage.removeItem(storageKey);
+  }, [currentUser]);
 
   const startGame = ({ playerName: nextName, size: nextSize, hintLimit: nextHintLimit }) => {
     setPlayerName(nextName);
@@ -45,7 +71,26 @@ function App() {
     window.location.hash = "#/play";
   };
 
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    setPlayerName(user.username);
+    window.location.hash = "#/profile";
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    window.location.hash = "#/login";
+  };
+
   const renderPage = () => {
+    if (route === "#/login") {
+      return <Login currentUser={currentUser} onLogin={handleLogin} />;
+    }
+
+    if (route === "#/register") {
+      return <Register onRegister={handleLogin} />;
+    }
+
     if (route === "#/solver") {
       return <Solver />;
     }
@@ -59,7 +104,12 @@ function App() {
     }
 
     if (route === "#/profile") {
-      return <Profile />;
+      if (!currentUser) {
+        window.location.hash = "#/login";
+        return null;
+      }
+
+      return <Profile currentUser={currentUser} onLogout={handleLogout} />;
     }
 
     return <Home />;

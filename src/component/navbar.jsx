@@ -56,6 +56,12 @@ export default function Navbar() {
         <a href="#/solver" style={linkStyle}>
           Solver
         </a>
+        <a href="#/login" style={linkStyle}>
+          Login
+        </a>
+        <a href="#/register" style={linkStyle}>
+          Register
+        </a>
         <a href="#/profile" style={linkStyle}>
           <AvatarIcon style={{ width: "clamp(32px, 5vw, 40px)", height: "clamp(32px, 5vw, 40px)" }} />
         </a>
