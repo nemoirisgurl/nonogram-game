@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import logo from "/logo.png";
-import AvatarIcon from "./avatarIcon";
+import AvatarIcon from "./avataricon";
 
 const topBarStyle = {
   display: "flex",
