@@ -42,10 +42,44 @@ function getInitials(username) {
     .join("");
 }
 
+function getAvatarStorageKey(userId) {
+  return `nonogram-avatar-${userId}`;
+}
+
+function loadStoredAvatar(userId) {
+  if (!userId) {
+    return { avatarVariant: "amber", avatarImage: "" };
+  }
+
+  try {
+    const stored = window.localStorage.getItem(getAvatarStorageKey(userId));
+    const parsed = stored ? JSON.parse(stored) : null;
+
+    return {
+      avatarVariant: parsed?.avatarVariant || "amber",
+      avatarImage: parsed?.avatarImage || "",
+    };
+  } catch {
+    return { avatarVariant: "amber", avatarImage: "" };
+  }
+}
+
 function loadNavbarUser() {
   try {
     const storedUser = window.localStorage.getItem("nonogram-auth-user");
-    return storedUser ? JSON.parse(storedUser) : null;
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+
+    if (!parsedUser) {
+      return null;
+    }
+
+    const storedAvatar = loadStoredAvatar(parsedUser.id);
+
+    return {
+      ...parsedUser,
+      avatarVariant: storedAvatar.avatarVariant || parsedUser.avatarVariant || "amber",
+      avatarImage: storedAvatar.avatarImage || parsedUser.avatarImage || "",
+    };
   } catch {
     return null;
   }
