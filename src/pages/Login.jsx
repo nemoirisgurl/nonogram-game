@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import authPreview from "../assets/login-register.png";
 import { supabase } from "../lib/supabase";
 
 const pageStyle = {
@@ -66,6 +65,24 @@ function normalizeErrorMessage(error) {
   return error.message || "Something went wrong.";
 }
 
+function isAuthLockError(error) {
+  const message = error?.message || "";
+  return message.includes("NavigatorLockAcquireTimeoutError") || message.includes("another request stole it");
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function withTimeout(promise, message, ms = 8000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
 export default function Login({ currentUser, onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -92,10 +109,20 @@ export default function Login({ currentUser, onLogin }) {
     setErrorMessage("");
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      let authResult = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
+
+      if (authResult.error && isAuthLockError(authResult.error)) {
+        await wait(600);
+        authResult = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+      }
+
+      const { data: authData, error: authError } = authResult;
 
       if (authError) {
         throw authError;
@@ -105,25 +132,32 @@ export default function Login({ currentUser, onLogin }) {
         throw new Error("Unable to load authenticated user.");
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("users")
-        .select("id, username, role")
-        .eq("id", authData.user.id)
-        .maybeSingle();
+      let profile = null;
 
-      if (profileError) {
-        throw profileError;
-      }
+      try {
+        const { data: profileData, error: profileError } = await withTimeout(
+          supabase
+            .from("users")
+            .select("id, username, role")
+            .eq("id", authData.user.id)
+            .maybeSingle(),
+          "Loading profile took too long."
+        );
 
-      if (!profile) {
-        throw new Error("User profile not found.");
+        if (profileError) {
+          throw profileError;
+        }
+
+        profile = profileData;
+      } catch {
+        profile = null;
       }
 
       onLogin({
-        id: profile.id,
+        id: authData.user.id,
         email: authData.user.email || "",
-        username: profile.username,
-        role: profile.role,
+        username: profile?.username || authData.user.user_metadata?.username || authData.user.email || "Player",
+        role: profile?.role || "guest",
         avatarVariant: authData.user.user_metadata?.avatarVariant || "amber",
       });
     } catch (error) {
@@ -158,7 +192,6 @@ export default function Login({ currentUser, onLogin }) {
             background: "#fef4d5",
           }}
         >
-          <img src={authPreview} alt="Login and register interface preview" style={{ display: "block", width: "100%", height: "auto" }} />
         </div>
       </aside>
 
