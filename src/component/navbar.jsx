@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import logo from "/logo.png";
 import AvatarIcon from "./avatarIcon";
+
 const topBarStyle = {
   display: "flex",
   alignItems: "center",
@@ -27,7 +29,45 @@ const linkStyle = {
   fontWeight: 700,
 };
 
+function getInitials(username) {
+  if (!username) {
+    return "";
+  }
+
+  return username
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("");
+}
+
+function loadNavbarUser() {
+  try {
+    const storedUser = window.localStorage.getItem("nonogram-auth-user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Navbar() {
+  const [navbarUser, setNavbarUser] = useState(() => loadNavbarUser());
+
+  useEffect(() => {
+    const syncNavbarUser = () => setNavbarUser(loadNavbarUser());
+
+    window.addEventListener("avatar-change", syncNavbarUser);
+    window.addEventListener("auth-user-change", syncNavbarUser);
+    window.addEventListener("storage", syncNavbarUser);
+
+    return () => {
+      window.removeEventListener("avatar-change", syncNavbarUser);
+      window.removeEventListener("auth-user-change", syncNavbarUser);
+      window.removeEventListener("storage", syncNavbarUser);
+    };
+  }, []);
+
   return (
     <header style={topBarStyle}>
       <a href="#/" aria-label="Go to home" style={brandStyle}>
@@ -56,14 +96,37 @@ export default function Navbar() {
         <a href="#/solver" style={linkStyle}>
           Solver
         </a>
-        <a href="#/login" style={linkStyle}>
-          Login
-        </a>
-        <a href="#/register" style={linkStyle}>
-          Register
-        </a>
-        <a href="#/profile" style={linkStyle}>
-          <AvatarIcon style={{ width: "clamp(32px, 5vw, 40px)", height: "clamp(32px, 5vw, 40px)" }} />
+        {navbarUser ? null : (
+          <>
+            <a href="#/login" style={linkStyle}>
+              Login
+            </a>
+            <a href="#/register" style={linkStyle}>
+              Register
+            </a>
+          </>
+        )}
+        <a
+          href="#/profile"
+          aria-label={navbarUser ? `${navbarUser.username} profile` : "Profile"}
+          title={navbarUser ? `${navbarUser.username} profile` : "Profile"}
+          style={{
+            ...linkStyle,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "clamp(40px, 6vw, 48px)",
+            height: "clamp(40px, 6vw, 48px)",
+            borderRadius: 999,
+            background: "rgba(17, 17, 17, 0.05)",
+          }}
+        >
+          <AvatarIcon
+            variant={navbarUser?.avatarVariant}
+            initials={getInitials(navbarUser?.username)}
+            imageSrc={navbarUser?.avatarImage}
+            style={{ width: "clamp(32px, 5vw, 40px)", height: "clamp(32px, 5vw, 40px)" }}
+          />
         </a>
       </nav>
     </header>

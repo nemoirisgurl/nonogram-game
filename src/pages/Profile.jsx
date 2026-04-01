@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../component/navbar";
 import AvatarIcon from "../component/avatarIcon";
+import { supabase } from "../lib/supabase";
 
 const shellStyle = {
   width: "min(920px, 100%)",
@@ -33,6 +34,47 @@ const labelStyle = {
   lineHeight: 1.5,
 };
 
+const avatarOptions = ["amber", "mint", "sky", "coral"];
+
+function getAvatarStorageKey(userId) {
+  return `nonogram-avatar-${userId}`;
+}
+
+function saveAvatarPreference(userId, avatarVariant, avatarImage) {
+  window.localStorage.setItem(
+    getAvatarStorageKey(userId),
+    JSON.stringify({
+      avatarVariant,
+      avatarImage,
+    })
+  );
+  window.dispatchEvent(new Event("avatar-change"));
+}
+
+function getInitials(username) {
+  if (!username) {
+    return "";
+  }
+
+  return username
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("");
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "No data yet";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 function GridPreview() {
   return (
     <svg viewBox="0 0 96 96" aria-hidden="true" style={{ width: "100%", height: "100%" }}>
@@ -59,8 +101,114 @@ function GridPreview() {
   );
 }
 
-export default function Profile() {
+export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
   const [hoveredAction, setHoveredAction] = useState(null);
+  const [avatarVariant, setAvatarVariant] = useState(currentUser?.avatarVariant || "amber");
+  const [avatarImage, setAvatarImage] = useState(currentUser?.avatarImage || "");
+  const [savedAvatarVariant, setSavedAvatarVariant] = useState(currentUser?.avatarVariant || "amber");
+  const [savedAvatarImage, setSavedAvatarImage] = useState(currentUser?.avatarImage || "");
+  const [latestSession, setLatestSession] = useState(null);
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+
+  useEffect(() => {
+    setAvatarVariant(currentUser?.avatarVariant || "amber");
+    setAvatarImage(currentUser?.avatarImage || "");
+    setSavedAvatarVariant(currentUser?.avatarVariant || "amber");
+    setSavedAvatarImage(currentUser?.avatarImage || "");
+  }, [currentUser?.avatarVariant, currentUser?.avatarImage]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadLatestSession = async () => {
+      const { data, error } = await supabase
+        .from("play_sessions")
+        .select("started_at, saved_at, hint_count, hint_limit, game_status, grids(created_at, sizes(rows, columns))")
+        .eq("player_id", currentUser.id)
+        .order("saved_at", { ascending: false, nullsFirst: false })
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (error) {
+        setStatusMessage(error.message);
+        return;
+      }
+
+      setLatestSession(data);
+    };
+
+    loadLatestSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser.id]);
+
+  const handleAvatarChange = async (nextVariant) => {
+    if (nextVariant === avatarVariant) {
+      return;
+    }
+
+    setAvatarVariant(nextVariant);
+    setStatusMessage("Avatar selection changed. Save to apply it.");
+  };
+
+  const handleAvatarFileChange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setStatusMessage("Please choose an image file.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const nextImage = typeof reader.result === "string" ? reader.result : "";
+
+      setAvatarImage(nextImage);
+      setStatusMessage("Custom avatar selected. Save to apply it.");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleResetAvatarImage = () => {
+    setAvatarImage("");
+    setStatusMessage("Returned to icon avatar. Save to apply it.");
+  };
+
+  const handleSaveAvatar = () => {
+    setIsSavingAvatar(true);
+    saveAvatarPreference(currentUser.id, avatarVariant, avatarImage);
+    setSavedAvatarVariant(avatarVariant);
+    setSavedAvatarImage(avatarImage);
+    onProfileUpdate({
+      ...currentUser,
+      avatarVariant,
+      avatarImage,
+    });
+    setStatusMessage("Profile icon saved.");
+    setIsSavingAvatar(false);
+  };
+
+  const latestGrid = latestSession?.grids;
+  const latestSize = Array.isArray(latestGrid?.sizes) ? latestGrid.sizes[0] : latestGrid?.sizes;
+  const hintsLeft =
+    latestSession && latestSession.hint_limit !== null && latestSession.hint_limit !== undefined
+      ? Math.max(latestSession.hint_limit - latestSession.hint_count, 0)
+      : "No limit";
+  const hasUnsavedAvatarChanges = avatarVariant !== savedAvatarVariant || avatarImage !== savedAvatarImage;
 
   return (
     <section style={shellStyle}>
@@ -78,24 +226,106 @@ export default function Profile() {
           }}
         >
           <div style={{ width: "clamp(96px, 22vw, 126px)", aspectRatio: "1 / 1", flexShrink: 0 }}>
-            <AvatarIcon />
+            <AvatarIcon variant={avatarVariant} initials={getInitials(currentUser.username)} imageSrc={avatarImage} />
           </div>
 
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "clamp(1.5rem, 4vw, 2.1rem)",
-              lineHeight: 1.2,
-              color: "#111111",
-              textAlign: "center",
-            }}
-          >
-            <span style={{ fontWeight: 800 }}>Welcome back!</span>{" "}
-            <span style={{ fontWeight: 400 }}>{"{your username}"}</span>
-          </h1>
+          <div style={{ display: "grid", gap: 10, justifyItems: "center" }}>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "clamp(1.5rem, 4vw, 2.1rem)",
+                lineHeight: 1.2,
+                color: "#111111",
+                textAlign: "center",
+              }}
+            >
+              <span style={{ fontWeight: 800 }}>Welcome back!</span>{" "}
+              <span style={{ fontWeight: 400 }}>{currentUser.username}</span>
+            </h1>
+            <p style={{ margin: 0, color: "#45556c", fontSize: "clamp(0.96rem, 2.6vw, 1.02rem)" }}>{currentUser.email || "No email found"}</p>
+          </div>
         </section>
 
         <section>
+          <div style={{ display: "grid", gap: 12, marginBottom: 22 }}>
+            <h2 style={{ margin: 0, fontSize: "clamp(1.2rem, 3.4vw, 1.6rem)", color: "#111111" }}>Choose your avatar</h2>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {avatarOptions.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleAvatarChange(option)}
+                  disabled={isSavingAvatar}
+                  style={{
+                    width: 72,
+                    aspectRatio: "1 / 1",
+                    borderRadius: 18,
+                    border: option === avatarVariant ? "2px solid #111111" : "1px solid rgba(15, 23, 42, 0.12)",
+                    background: "#ffffff",
+                    padding: 10,
+                    cursor: "pointer",
+                  }}
+                >
+                  <AvatarIcon variant={option} initials={getInitials(currentUser.username)} />
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <label
+                style={{
+                  ...buttonStyle,
+                  minWidth: 180,
+                  display: "inline-flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  background: "#3b82f6",
+                  color: "#ffffff",
+                }}
+              >
+                Browse Avatar
+                <input type="file" accept="image/*" onChange={handleAvatarFileChange} style={{ display: "none" }} />
+              </label>
+              <button
+                type="button"
+                onClick={handleResetAvatarImage}
+                style={{ ...buttonStyle, minWidth: 180, background: "#e5e7eb", color: "#111111" }}
+              >
+                Use Default Icon
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAvatar}
+                disabled={!hasUnsavedAvatarChanges || isSavingAvatar}
+                style={{
+                  ...buttonStyle,
+                  minWidth: 200,
+                  background: hasUnsavedAvatarChanges ? "#111111" : "#9ca3af",
+                  color: "#ffffff",
+                  display: "inline-flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 10,
+                  cursor: hasUnsavedAvatarChanges ? "pointer" : "not-allowed",
+                }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: 18, height: 18, fill: "currentColor" }}>
+                  <path d="M5 3h11l3 3v15H5zm2 2v4h8V5zm0 8v6h10v-6zm2 1h6v4H9z" />
+                </svg>
+                {isSavingAvatar ? "Saving..." : "Save Profile Icon"}
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              {statusMessage ? <p style={{ margin: 0, color: "#45556c" }}>{statusMessage}</p> : null}
+              <button
+                type="button"
+                onClick={onLogout}
+                style={{ ...buttonStyle, minWidth: 160, background: "#111111", color: "#ffffff" }}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+
           <h2
             style={{
               margin: "0 0 16px",
@@ -130,13 +360,13 @@ export default function Profile() {
               }}
             >
               <p style={labelStyle}>
-                <strong>Created at:</strong> {"{time created}"}
+                <strong>Created at:</strong> {formatDate(latestGrid?.created_at)}
               </p>
               <p style={labelStyle}>
-                <strong>Size:</strong> {"{rows}"} × {"{columns}"}
+                <strong>Size:</strong> {latestSize ? `${latestSize.rows} × ${latestSize.columns}` : "No puzzle yet"}
               </p>
               <p style={labelStyle}>
-                <strong>Hints left:</strong> {"{hints left}"}
+                <strong>Hints left:</strong> {hintsLeft}
               </p>
             </div>
 
@@ -150,7 +380,10 @@ export default function Profile() {
               }}
             >
               <p style={labelStyle}>
-                <strong>Last saved:</strong> {"{time saved}"}
+                <strong>Last saved:</strong> {formatDate(latestSession?.saved_at || latestSession?.started_at)}
+              </p>
+              <p style={labelStyle}>
+                <strong>Status:</strong> {latestSession?.game_status || "No active game"}
               </p>
               <button
                 type="button"
@@ -162,7 +395,7 @@ export default function Profile() {
                 onMouseEnter={() => setHoveredAction("continue")}
                 onMouseLeave={() => setHoveredAction(null)}
               >
-                Continue
+                {latestSession ? "Continue" : "No Save Yet"}
               </button>
             </div>
           </article>

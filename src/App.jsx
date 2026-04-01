@@ -7,13 +7,54 @@ import Solver from "./pages/Solver";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import { supabase } from "./lib/supabase";
 
 const routes = ["#/", "#/play", "#/game", "#/solver", "#/profile", "#/login", "#/register"];
 const storageKey = "nonogram-auth-user";
 
+function getAvatarStorageKey(userId) {
+  return `nonogram-avatar-${userId}`;
+}
+
+function loadStoredAvatar(userId) {
+  if (!userId) {
+    return { avatarVariant: "amber", avatarImage: "" };
+  }
+
+  try {
+    const stored = window.localStorage.getItem(getAvatarStorageKey(userId));
+    const parsed = stored ? JSON.parse(stored) : null;
+
+    return {
+      avatarVariant: parsed?.avatarVariant || "amber",
+      avatarImage: parsed?.avatarImage || "",
+    };
+  } catch {
+    return { avatarVariant: "amber", avatarImage: "" };
+  }
+}
+
 function getRouteFromHash() {
   const hash = window.location.hash || "#/";
   return routes.includes(hash) ? hash : "#/";
+}
+
+async function loadCurrentUser(sessionUser) {
+  if (!sessionUser) {
+    return null;
+  }
+
+  const { data: profile } = await supabase.from("users").select("username, role").eq("id", sessionUser.id).maybeSingle();
+  const storedAvatar = loadStoredAvatar(sessionUser.id);
+
+  return {
+    id: sessionUser.id,
+    email: sessionUser.email || "",
+    username: profile?.username || sessionUser.user_metadata?.username || "",
+    role: profile?.role || "guest",
+    avatarVariant: storedAvatar.avatarVariant || sessionUser.user_metadata?.avatarVariant || "amber",
+    avatarImage: storedAvatar.avatarImage,
+  };
 }
 
 function App() {
@@ -44,6 +85,45 @@ function App() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const syncSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const nextUser = await loadCurrentUser(session?.user || null);
+
+      if (isMounted) {
+        setCurrentUser(nextUser);
+        if (nextUser?.username) {
+          setPlayerName(nextUser.username);
+        }
+      }
+    };
+
+    syncSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const nextUser = await loadCurrentUser(session?.user || null);
+
+      if (isMounted) {
+        setCurrentUser(nextUser);
+        if (nextUser?.username) {
+          setPlayerName(nextUser.username);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (route === "#/game" && !isInGame) {
       window.location.hash = "#/play";
     }
@@ -52,10 +132,12 @@ function App() {
   useEffect(() => {
     if (currentUser) {
       window.localStorage.setItem(storageKey, JSON.stringify(currentUser));
+      window.dispatchEvent(new Event("auth-user-change"));
       return;
     }
 
     window.localStorage.removeItem(storageKey);
+    window.dispatchEvent(new Event("auth-user-change"));
   }, [currentUser]);
 
   const startGame = ({ playerName: nextName, size: nextSize, hintLimit: nextHintLimit }) => {
@@ -77,7 +159,15 @@ function App() {
     window.location.hash = "#/profile";
   };
 
-  const handleLogout = () => {
+  const handleProfileUpdate = (user) => {
+    setCurrentUser(user);
+    if (user?.username) {
+      setPlayerName(user.username);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
     window.location.hash = "#/login";
   };
@@ -109,7 +199,7 @@ function App() {
         return null;
       }
 
-      return <Profile currentUser={currentUser} onLogout={handleLogout} />;
+      return <Profile currentUser={currentUser} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
     }
 
     return <Home />;

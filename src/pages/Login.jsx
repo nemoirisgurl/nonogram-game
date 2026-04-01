@@ -121,8 +121,10 @@ export default function Login({ currentUser, onLogin }) {
 
       onLogin({
         id: profile.id,
+        email: authData.user.email || "",
         username: profile.username,
         role: profile.role,
+        avatarVariant: authData.user.user_metadata?.avatarVariant || "amber",
       });
     } catch (error) {
       setErrorMessage(normalizeErrorMessage(error));

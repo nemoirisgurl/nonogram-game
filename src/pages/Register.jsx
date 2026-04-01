@@ -115,6 +115,12 @@ export default function Register({ onRegister }) {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
+        options: {
+          data: {
+            username: trimmedUsername,
+            avatarVariant: "amber",
+          },
+        },
       });
 
       if (authError) {
@@ -140,7 +146,11 @@ export default function Register({ onRegister }) {
       }
 
       if (authData.session) {
-        onRegister(data);
+        onRegister({
+          ...data,
+          email: authData.user.email || "",
+          avatarVariant: authData.user.user_metadata?.avatarVariant || "amber",
+        });
         return;
       }
 
