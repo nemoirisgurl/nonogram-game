@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import authPreview from "../assets/login-register.png";
 import { supabase } from "../lib/supabase";
 
 const pageStyle = {
@@ -158,7 +157,6 @@ export default function Login({ currentUser, onLogin }) {
             background: "#fef4d5",
           }}
         >
-          <img src={authPreview} alt="Login and register interface preview" style={{ display: "block", width: "100%", height: "auto" }} />
         </div>
       </aside>
 
