@@ -64,6 +64,24 @@ function normalizeErrorMessage(error) {
   return error.message || "Something went wrong.";
 }
 
+function isAuthLockError(error) {
+  const message = error?.message || "";
+  return message.includes("NavigatorLockAcquireTimeoutError") || message.includes("another request stole it");
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function withTimeout(promise, message, ms = 8000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
 export default function Register({ onRegister }) {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -97,11 +115,14 @@ export default function Register({ onRegister }) {
     setErrorMessage("");
 
     try {
-      const { data: existingUser, error: existingUserError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("username", trimmedUsername)
-        .maybeSingle();
+      const { data: existingUser, error: existingUserError } = await withTimeout(
+        supabase
+          .from("users")
+          .select("id")
+          .eq("username", trimmedUsername)
+          .maybeSingle(),
+        "Checking username took too long."
+      );
 
       if (existingUserError) {
         throw existingUserError;
@@ -111,7 +132,7 @@ export default function Register({ onRegister }) {
         throw new Error("Username already exists.");
       }
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      let authResult = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
         options: {
@@ -122,6 +143,22 @@ export default function Register({ onRegister }) {
         },
       });
 
+      if (authResult.error && isAuthLockError(authResult.error)) {
+        await wait(600);
+        authResult = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password,
+          options: {
+            data: {
+              username: trimmedUsername,
+              avatarVariant: "amber",
+            },
+          },
+        });
+      }
+
+      const { data: authData, error: authError } = authResult;
+
       if (authError) {
         throw authError;
       }
@@ -130,15 +167,18 @@ export default function Register({ onRegister }) {
         throw new Error("Unable to create authenticated user.");
       }
 
-      const { data, error } = await supabase
-        .from("users")
-        .insert({
-          id: authData.user.id,
-          username: trimmedUsername,
-          role: "guest",
-        })
-        .select("id, username, role")
-        .single();
+      const { data, error } = await withTimeout(
+        supabase
+          .from("users")
+          .insert({
+            id: authData.user.id,
+            username: trimmedUsername,
+            role: "guest",
+          })
+          .select("id, username, role")
+          .single(),
+        "Creating profile took too long."
+      );
 
       if (error) {
         throw error;

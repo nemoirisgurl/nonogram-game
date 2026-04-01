@@ -197,6 +197,8 @@ function App() {
     }
 
     setIsSigningOut(true);
+    setCurrentUser(null);
+    window.location.hash = "#/";
 
     try {
       await supabase.auth.signOut();
@@ -208,9 +210,6 @@ function App() {
         throw error;
       }
     }
-
-    setCurrentUser(null);
-    window.location.hash = "#/";
     setIsSigningOut(false);
   };
 
