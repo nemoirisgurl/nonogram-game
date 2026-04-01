@@ -63,6 +63,7 @@ function App() {
   const [size, setSize] = useState(5);
   const [hintLimit, setHintLimit] = useState(null);
   const [isInGame, setIsInGame] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = window.localStorage.getItem(storageKey);
 
@@ -88,16 +89,28 @@ function App() {
     let isMounted = true;
 
     const syncSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      if (isSigningOut) {
+        return;
+      }
 
-      const nextUser = await loadCurrentUser(session?.user || null);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (isMounted) {
-        setCurrentUser(nextUser);
-        if (nextUser?.username) {
-          setPlayerName(nextUser.username);
+        const nextUser = await loadCurrentUser(session?.user || null);
+
+        if (isMounted) {
+          setCurrentUser(nextUser);
+          if (nextUser?.username) {
+            setPlayerName(nextUser.username);
+          }
+        }
+      } catch (error) {
+        const message = error?.message || "";
+
+        if (!isMounted || message.includes("NavigatorLockAcquireTimeoutError") || message.includes("another request stole it")) {
+          return;
         }
       }
     };
@@ -107,12 +120,24 @@ function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const nextUser = await loadCurrentUser(session?.user || null);
+      if (isSigningOut) {
+        return;
+      }
 
-      if (isMounted) {
-        setCurrentUser(nextUser);
-        if (nextUser?.username) {
-          setPlayerName(nextUser.username);
+      try {
+        const nextUser = await loadCurrentUser(session?.user || null);
+
+        if (isMounted) {
+          setCurrentUser(nextUser);
+          if (nextUser?.username) {
+            setPlayerName(nextUser.username);
+          }
+        }
+      } catch (error) {
+        const message = error?.message || "";
+
+        if (!isMounted || message.includes("NavigatorLockAcquireTimeoutError") || message.includes("another request stole it")) {
+          return;
         }
       }
     });
@@ -121,7 +146,7 @@ function App() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isSigningOut]);
 
   useEffect(() => {
     if (route === "#/game" && !isInGame) {
@@ -167,9 +192,26 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      const message = error?.message || "";
+
+      if (!message.includes("NavigatorLockAcquireTimeoutError") && !message.includes("another request stole it")) {
+        setIsSigningOut(false);
+        throw error;
+      }
+    }
+
     setCurrentUser(null);
-    window.location.hash = "#/login";
+    window.location.hash = "#/";
+    setIsSigningOut(false);
   };
 
   const renderPage = () => {

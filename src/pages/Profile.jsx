@@ -109,6 +109,7 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
   const [savedAvatarImage, setSavedAvatarImage] = useState(currentUser?.avatarImage || "");
   const [latestSession, setLatestSession] = useState(null);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
@@ -200,6 +201,21 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
     });
     setStatusMessage("Profile icon saved.");
     setIsSavingAvatar(false);
+  };
+
+  const handleLogoutClick = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+
+    try {
+      await onLogout();
+    } catch (error) {
+      setStatusMessage(error?.message || "Unable to logout right now.");
+      setIsLoggingOut(false);
+    }
   };
 
   const latestGrid = latestSession?.grids;
@@ -318,10 +334,18 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
               {statusMessage ? <p style={{ margin: 0, color: "#45556c" }}>{statusMessage}</p> : null}
               <button
                 type="button"
-                onClick={onLogout}
-                style={{ ...buttonStyle, minWidth: 160, background: "#111111", color: "#ffffff" }}
+                onClick={handleLogoutClick}
+                disabled={isLoggingOut}
+                style={{
+                  ...buttonStyle,
+                  minWidth: 160,
+                  background: "#111111",
+                  color: "#ffffff",
+                  opacity: isLoggingOut ? 0.72 : 1,
+                  cursor: isLoggingOut ? "not-allowed" : "pointer",
+                }}
               >
-                Logout
+                {isLoggingOut ? "Logging out..." : "Logout"}
               </button>
             </div>
           </div>
@@ -413,13 +437,16 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
             <p style={{ margin: 0, color: "#111111", fontSize: "clamp(1rem, 2.8vw, 1.1rem)" }}>
               Wanna play new puzzle?
             </p>
-            <button
-              type="button"
-              style={{
-                ...buttonStyle,
-                background: hoveredAction === "new" ? "#e3b11f" : "#ffca2c",
-                transform: hoveredAction === "new" ? "translateY(-1px)" : "translateY(0)",
-              }}
+              <button
+                type="button"
+                style={{
+                  ...buttonStyle,
+                  background: hoveredAction === "new" ? "#e3b11f" : "#ffca2c",
+                  transform: hoveredAction === "new" ? "translateY(-1px)" : "translateY(0)",
+                }}
+                onClick={() => {
+                  window.location.hash = "#/play";
+                }}
               onMouseEnter={() => setHoveredAction("new")}
               onMouseLeave={() => setHoveredAction(null)}
             >
