@@ -35,6 +35,7 @@ const labelStyle = {
 };
 
 const avatarOptions = ["amber", "mint", "sky", "coral"];
+const avatarBucket = "avatar_icons";
 
 function getAvatarStorageKey(userId) {
   return `nonogram-avatar-${userId}`;
@@ -49,6 +50,15 @@ function saveAvatarPreference(userId, avatarVariant, avatarImage) {
     })
   );
   window.dispatchEvent(new Event("avatar-change"));
+}
+
+function getAvatarObjectPath(userId) {
+  return `${userId}/avatar`;
+}
+
+function getAvatarPublicUrl(userId, cacheKey = Date.now()) {
+  const { data } = supabase.storage.from(avatarBucket).getPublicUrl(getAvatarObjectPath(userId));
+  return data?.publicUrl ? `${data.publicUrl}?t=${cacheKey}` : "";
 }
 
 function getInitials(username) {
@@ -107,6 +117,7 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
   const [avatarImage, setAvatarImage] = useState(currentUser?.avatarImage || "");
   const [savedAvatarVariant, setSavedAvatarVariant] = useState(currentUser?.avatarVariant || "amber");
   const [savedAvatarImage, setSavedAvatarImage] = useState(currentUser?.avatarImage || "");
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState(null);
   const [latestSession, setLatestSession] = useState(null);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -117,6 +128,7 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
     setAvatarImage(currentUser?.avatarImage || "");
     setSavedAvatarVariant(currentUser?.avatarVariant || "amber");
     setSavedAvatarImage(currentUser?.avatarImage || "");
+    setSelectedAvatarFile(null);
   }, [currentUser?.avatarVariant, currentUser?.avatarImage]);
 
   useEffect(() => {
@@ -177,6 +189,7 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
     reader.onload = () => {
       const nextImage = typeof reader.result === "string" ? reader.result : "";
 
+      setSelectedAvatarFile(file);
       setAvatarImage(nextImage);
       setStatusMessage("Custom avatar selected. Save to apply it.");
     };
@@ -185,22 +198,57 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
   };
 
   const handleResetAvatarImage = () => {
+    setSelectedAvatarFile(null);
     setAvatarImage("");
     setStatusMessage("Returned to icon avatar. Save to apply it.");
   };
 
-  const handleSaveAvatar = () => {
+  const handleSaveAvatar = async () => {
     setIsSavingAvatar(true);
-    saveAvatarPreference(currentUser.id, avatarVariant, avatarImage);
-    setSavedAvatarVariant(avatarVariant);
-    setSavedAvatarImage(avatarImage);
-    onProfileUpdate({
-      ...currentUser,
-      avatarVariant,
-      avatarImage,
-    });
-    setStatusMessage("Profile icon saved.");
-    setIsSavingAvatar(false);
+
+    try {
+      let nextAvatarImage = savedAvatarImage;
+
+      if (selectedAvatarFile) {
+        const { error: uploadError } = await supabase.storage.from(avatarBucket).upload(getAvatarObjectPath(currentUser.id), selectedAvatarFile, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: selectedAvatarFile.type,
+        });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        nextAvatarImage = getAvatarPublicUrl(currentUser.id);
+      } else if (!avatarImage && savedAvatarImage) {
+        const { error: deleteError } = await supabase.storage.from(avatarBucket).remove([getAvatarObjectPath(currentUser.id)]);
+
+        if (deleteError) {
+          throw deleteError;
+        }
+
+        nextAvatarImage = "";
+      } else if (!avatarImage) {
+        nextAvatarImage = "";
+      }
+
+      saveAvatarPreference(currentUser.id, avatarVariant, nextAvatarImage);
+      setSavedAvatarVariant(avatarVariant);
+      setSavedAvatarImage(nextAvatarImage);
+      setSelectedAvatarFile(null);
+      setAvatarImage(nextAvatarImage);
+      onProfileUpdate({
+        ...currentUser,
+        avatarVariant,
+        avatarImage: nextAvatarImage,
+      });
+      setStatusMessage("Profile icon saved.");
+    } catch (error) {
+      setStatusMessage(error?.message || "Unable to save profile icon right now.");
+    } finally {
+      setIsSavingAvatar(false);
+    }
   };
 
   const handleLogoutClick = async () => {

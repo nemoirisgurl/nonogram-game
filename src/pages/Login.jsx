@@ -147,6 +147,7 @@ export default function Login({ currentUser, onLogin }) {
         username: profile?.username || authData.user.user_metadata?.username || authData.user.email || "Player",
         role: profile?.role || "guest",
         avatarVariant: authData.user.user_metadata?.avatarVariant || "amber",
+        avatarImage: "",
       });
     } catch (error) {
       setErrorMessage(normalizeErrorMessage(error));

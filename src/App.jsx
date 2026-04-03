@@ -11,6 +11,7 @@ import { supabase } from "./lib/supabase";
 
 const routes = ["#/", "#/play", "#/game", "#/solver", "#/profile", "#/login", "#/register"];
 const storageKey = "nonogram-auth-user";
+const avatarBucket = "avatar_icons";
 
 function getAvatarStorageKey(userId) {
   return `nonogram-avatar-${userId}`;
@@ -39,6 +40,37 @@ function getRouteFromHash() {
   return routes.includes(hash) ? hash : "#/";
 }
 
+function getAvatarObjectPath(userId) {
+  return `${userId}/avatar`;
+}
+
+async function loadAvatarUrl(userId) {
+  if (!userId) {
+    return "";
+  }
+
+  try {
+    const { data, error } = await supabase.storage.from(avatarBucket).list(userId, {
+      limit: 10,
+    });
+
+    if (error) {
+      return "";
+    }
+
+    const avatarObject = data?.find((item) => item.name === "avatar");
+
+    if (!avatarObject) {
+      return "";
+    }
+
+    const { data: publicUrlData } = supabase.storage.from(avatarBucket).getPublicUrl(getAvatarObjectPath(userId));
+    return publicUrlData?.publicUrl ? `${publicUrlData.publicUrl}?t=${avatarObject.updated_at || Date.now()}` : "";
+  } catch {
+    return "";
+  }
+}
+
 async function loadCurrentUser(sessionUser) {
   if (!sessionUser) {
     return null;
@@ -54,6 +86,7 @@ async function loadCurrentUser(sessionUser) {
   }
 
   const storedAvatar = loadStoredAvatar(sessionUser.id);
+  const remoteAvatarUrl = await loadAvatarUrl(sessionUser.id);
 
   return {
     id: sessionUser.id,
@@ -61,7 +94,7 @@ async function loadCurrentUser(sessionUser) {
     username: profile?.username || sessionUser.user_metadata?.username || "",
     role: profile?.role || "guest",
     avatarVariant: storedAvatar.avatarVariant || sessionUser.user_metadata?.avatarVariant || "amber",
-    avatarImage: storedAvatar.avatarImage,
+    avatarImage: remoteAvatarUrl || storedAvatar.avatarImage,
   };
 }
 

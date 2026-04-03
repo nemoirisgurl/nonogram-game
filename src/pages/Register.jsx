@@ -169,6 +169,7 @@ export default function Register({ onRegister }) {
           role: "guest",
           email: authData.user.email || "",
           avatarVariant: authData.user.user_metadata?.avatarVariant || "amber",
+          avatarImage: "",
         });
         return;
       }
