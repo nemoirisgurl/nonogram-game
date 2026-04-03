@@ -73,13 +73,24 @@ function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function withTimeout(promise, message, ms = 8000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      window.setTimeout(() => reject(new Error(message)), ms);
-    }),
-  ]);
+async function persistProfile(userId, username) {
+  try {
+    await Promise.race([
+      supabase.from("users").upsert(
+        {
+          id: userId,
+          username,
+          role: "guest",
+        },
+        { onConflict: "id" }
+      ),
+      new Promise((_, reject) => {
+        window.setTimeout(() => reject(new Error("Profile sync timed out.")), 5000);
+      }),
+    ]);
+  } catch {
+    // Auth succeeded; don't block registration on the profile mirror table.
+  }
 }
 
 export default function Register({ onRegister }) {
@@ -115,23 +126,6 @@ export default function Register({ onRegister }) {
     setErrorMessage("");
 
     try {
-      const { data: existingUser, error: existingUserError } = await withTimeout(
-        supabase
-          .from("users")
-          .select("id")
-          .eq("username", trimmedUsername)
-          .maybeSingle(),
-        "Checking username took too long."
-      );
-
-      if (existingUserError) {
-        throw existingUserError;
-      }
-
-      if (existingUser) {
-        throw new Error("Username already exists.");
-      }
-
       let authResult = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
@@ -167,26 +161,12 @@ export default function Register({ onRegister }) {
         throw new Error("Unable to create authenticated user.");
       }
 
-      const { data, error } = await withTimeout(
-        supabase
-          .from("users")
-          .insert({
-            id: authData.user.id,
-            username: trimmedUsername,
-            role: "guest",
-          })
-          .select("id, username, role")
-          .single(),
-        "Creating profile took too long."
-      );
-
-      if (error) {
-        throw error;
-      }
-
       if (authData.session) {
+        void persistProfile(authData.user.id, trimmedUsername);
         onRegister({
-          ...data,
+          id: authData.user.id,
+          username: trimmedUsername,
+          role: "guest",
           email: authData.user.email || "",
           avatarVariant: authData.user.user_metadata?.avatarVariant || "amber",
         });

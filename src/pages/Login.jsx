@@ -74,15 +74,6 @@ function wait(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function withTimeout(promise, message, ms = 8000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      window.setTimeout(() => reject(new Error(message)), ms);
-    }),
-  ]);
-}
-
 export default function Login({ currentUser, onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -135,14 +126,11 @@ export default function Login({ currentUser, onLogin }) {
       let profile = null;
 
       try {
-        const { data: profileData, error: profileError } = await withTimeout(
-          supabase
-            .from("users")
-            .select("id, username, role")
-            .eq("id", authData.user.id)
-            .maybeSingle(),
-          "Loading profile took too long."
-        );
+        const { data: profileData, error: profileError } = await supabase
+          .from("users")
+          .select("id, username, role")
+          .eq("id", authData.user.id)
+          .maybeSingle();
 
         if (profileError) {
           throw profileError;

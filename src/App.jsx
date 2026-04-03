@@ -44,7 +44,15 @@ async function loadCurrentUser(sessionUser) {
     return null;
   }
 
-  const { data: profile } = await supabase.from("users").select("username, role").eq("id", sessionUser.id).maybeSingle();
+  let profile = null;
+
+  try {
+    const { data } = await supabase.from("users").select("username, role").eq("id", sessionUser.id).maybeSingle();
+    profile = data;
+  } catch {
+    profile = null;
+  }
+
   const storedAvatar = loadStoredAvatar(sessionUser.id);
 
   return {
@@ -88,17 +96,9 @@ function App() {
   useEffect(() => {
     let isMounted = true;
 
-    const syncSession = async () => {
-      if (isSigningOut) {
-        return;
-      }
-
+    const applySessionUser = async (sessionUser) => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        const nextUser = await loadCurrentUser(session?.user || null);
+        const nextUser = await loadCurrentUser(sessionUser);
 
         if (isMounted) {
           setCurrentUser(nextUser);
@@ -115,24 +115,16 @@ function App() {
       }
     };
 
-    syncSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (isSigningOut) {
+    const syncSession = async () => {
+      if (isSigningOut || !isMounted) {
         return;
       }
 
       try {
-        const nextUser = await loadCurrentUser(session?.user || null);
-
-        if (isMounted) {
-          setCurrentUser(nextUser);
-          if (nextUser?.username) {
-            setPlayerName(nextUser.username);
-          }
-        }
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        await applySessionUser(session?.user || null);
       } catch (error) {
         const message = error?.message || "";
 
@@ -140,6 +132,24 @@ function App() {
           return;
         }
       }
+    };
+
+    void syncSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isSigningOut) {
+        return;
+      }
+
+      window.setTimeout(() => {
+        if (!isMounted || isSigningOut) {
+          return;
+        }
+
+        void applySessionUser(session?.user || null);
+      }, 0);
     });
 
     return () => {
