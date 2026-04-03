@@ -103,6 +103,8 @@ function App() {
   const [playerName, setPlayerName] = useState("");
   const [size, setSize] = useState(5);
   const [hintLimit, setHintLimit] = useState(null);
+  const [currentGridId, setCurrentGridId] = useState(null);
+  const [currentPuzzle, setCurrentPuzzle] = useState(null);
   const [isInGame, setIsInGame] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -208,16 +210,20 @@ function App() {
     window.dispatchEvent(new Event("auth-user-change"));
   }, [currentUser]);
 
-  const startGame = ({ playerName: nextName, size: nextSize, hintLimit: nextHintLimit }) => {
+  const startGame = ({ playerName: nextName, size: nextSize, hintLimit: nextHintLimit, gridId = null, puzzle = null }) => {
     setPlayerName(nextName);
     setSize(nextSize);
     setHintLimit(nextHintLimit);
+    setCurrentGridId(gridId);
+    setCurrentPuzzle(puzzle);
     setIsInGame(true);
     window.location.hash = "#/game";
   };
 
   const abandonGame = () => {
     setIsInGame(false);
+    setCurrentGridId(null);
+    setCurrentPuzzle(null);
     window.location.hash = "#/play";
   };
 
@@ -280,11 +286,11 @@ function App() {
     }
 
     if (route === "#/game" && isInGame) {
-      return <Game playerName={playerName} size={size} hintLimit={hintLimit} onAbandon={abandonGame} />;
+      return <Game currentUser={currentUser} gridId={currentGridId} initialPuzzle={currentPuzzle} playerName={playerName} size={size} hintLimit={hintLimit} onAbandon={abandonGame} />;
     }
 
     if (route === "#/play") {
-      return <GameSetup initialName={playerName} initialSize={size} initialHintLimit={hintLimit} onStart={startGame} />;
+      return <GameSetup currentUser={currentUser} initialName={playerName} initialSize={size} initialHintLimit={hintLimit} onStart={startGame} />;
     }
 
     if (route === "#/profile") {

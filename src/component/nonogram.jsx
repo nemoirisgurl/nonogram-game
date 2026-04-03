@@ -266,9 +266,11 @@ function SolverBoard({
 export default function Nonogram({
   mode = "game",
   size = 5,
+  initialPuzzle = null,
   playerName = "",
   hintLimit = null,
   onAbandon,
+  onProgressChange,
   grid: controlledGrid,
   rowClues: controlledRowClues,
   colClues: controlledColClues,
@@ -293,7 +295,7 @@ export default function Nonogram({
   const canvasRef = useRef(null);
   const dragActionRef = useRef(null);
   const lastDraggedCellRef = useRef(null);
-  const [puzzle, setPuzzle] = useState(() => generatePuzzle(size, 100));
+  const [puzzle, setPuzzle] = useState(() => initialPuzzle || generatePuzzle(size, 100));
   const [grid, setGrid] = useState(() => createEmptyGrid(size));
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [didWin, setDidWin] = useState(false);
@@ -306,6 +308,7 @@ export default function Nonogram({
   const [hoveredButton, setHoveredButton] = useState(null);
   const [isUseHovered, setIsUseHovered] = useState(false);
   const [isCrossHovered, setIsCrossHovered] = useState(false);
+  const [startedAt, setStartedAt] = useState(() => new Date().toISOString());
   const maxRowClues = Math.max(...puzzle.rowClues.map((clue) => clue.length));
   const maxColClues = Math.max(...puzzle.colClues.map((clue) => clue.length));
   const isCompactViewport = viewportSize.w < 820;
@@ -336,19 +339,20 @@ export default function Nonogram({
   }, []);
 
   useEffect(() => {
-    const nextPuzzle = generatePuzzle(size, 100);
+    const nextPuzzle = initialPuzzle || generatePuzzle(size, 100);
     setPuzzle(nextPuzzle);
     setGrid(createEmptyGrid(size));
     setDidWin(false);
     setHintMessage("");
     setElapsedSeconds(0);
     setHintsUsed(0);
+    setStartedAt(new Date().toISOString());
     setLockedCells(new Set());
     setSaveMessage("");
     setToolMode("fill");
     dragActionRef.current = null;
     lastDraggedCellRef.current = null;
-  }, [size]);
+  }, [initialPuzzle, size]);
 
   useEffect(() => {
     if (didWin) return undefined;
@@ -361,6 +365,25 @@ export default function Nonogram({
   useEffect(() => {
     setDidWin(checkWin(grid, puzzle.solution));
   }, [grid, puzzle.solution]);
+
+  const buildSnapshot = () => ({
+    playerName,
+    size,
+    hintLimit: hintCap,
+    hintsUsed,
+    lockedCells: Array.from(lockedCells),
+    elapsedSeconds,
+    toolMode,
+    grid,
+    puzzle,
+    startedAt,
+    savedAt: new Date().toISOString(),
+    gameStatus: didWin ? "completed" : "in_progress",
+  });
+
+  useEffect(() => {
+    onProgressChange?.(buildSnapshot());
+  }, [didWin, elapsedSeconds, grid, hintCap, hintsUsed, lockedCells, onProgressChange, playerName, puzzle, size, startedAt, toolMode]);
 
   useEffect(() => {
     window.addEventListener("mouseup", endDrag);
@@ -490,19 +513,9 @@ export default function Nonogram({
   };
 
   const saveGame = () => {
-    const snapshot = {
-      playerName,
-      size,
-      hintLimit: hintCap,
-      hintsUsed,
-      lockedCells: Array.from(lockedCells),
-      elapsedSeconds,
-      toolMode,
-      grid,
-      puzzle,
-      savedAt: new Date().toISOString(),
-    };
+    const snapshot = buildSnapshot();
     window.localStorage.setItem("nonogrammer-save", JSON.stringify(snapshot));
+    onProgressChange?.(snapshot);
     setHintMessage("");
     setSaveMessage("Saved locally.");
   };
@@ -763,7 +776,7 @@ export default function Nonogram({
           onMouseLeave={() => setHoveredButton(null)}
           style={actionButtonStyle("save")}
         >
-          Save game (WIP)
+          Save game
         </button>
 
         <button

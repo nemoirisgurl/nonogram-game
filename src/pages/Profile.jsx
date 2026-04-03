@@ -36,6 +36,7 @@ const labelStyle = {
 
 const avatarOptions = ["amber", "mint", "sky", "coral"];
 const avatarBucket = "avatar_icons";
+const activeSessionStorageKey = "nonogram-active-session";
 
 function getAvatarStorageKey(userId) {
   return `nonogram-avatar-${userId}`;
@@ -111,6 +112,40 @@ function GridPreview() {
   );
 }
 
+function loadActiveSession(playerId) {
+  if (!playerId) {
+    return null;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(activeSessionStorageKey);
+    const parsed = stored ? JSON.parse(stored) : null;
+
+    if (!parsed || parsed.playerId !== playerId) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSession(session) {
+  if (!session) {
+    return null;
+  }
+
+  return {
+    ...session,
+    hint_count: session.hint_count ?? session.hintCount ?? 0,
+    hint_limit: session.hint_limit ?? session.hintLimit ?? null,
+    game_status: session.game_status ?? session.gameStatus ?? "",
+    started_at: session.started_at ?? session.startedAt ?? null,
+    saved_at: session.saved_at ?? session.savedAt ?? null,
+  };
+}
+
 export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
   const [hoveredAction, setHoveredAction] = useState(null);
   const [avatarVariant, setAvatarVariant] = useState(currentUser?.avatarVariant || "amber");
@@ -119,6 +154,7 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
   const [savedAvatarImage, setSavedAvatarImage] = useState(currentUser?.avatarImage || "");
   const [selectedAvatarFile, setSelectedAvatarFile] = useState(null);
   const [latestSession, setLatestSession] = useState(null);
+  const [activeSession, setActiveSession] = useState(() => loadActiveSession(currentUser?.id));
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -129,7 +165,19 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
     setSavedAvatarVariant(currentUser?.avatarVariant || "amber");
     setSavedAvatarImage(currentUser?.avatarImage || "");
     setSelectedAvatarFile(null);
-  }, [currentUser?.avatarVariant, currentUser?.avatarImage]);
+    setActiveSession(loadActiveSession(currentUser?.id));
+  }, [currentUser?.avatarVariant, currentUser?.avatarImage, currentUser?.id]);
+
+  useEffect(() => {
+    const syncActiveSession = () => setActiveSession(loadActiveSession(currentUser.id));
+
+    window.addEventListener("active-session-change", syncActiveSession);
+    window.addEventListener("storage", syncActiveSession);
+    return () => {
+      window.removeEventListener("active-session-change", syncActiveSession);
+      window.removeEventListener("storage", syncActiveSession);
+    };
+  }, [currentUser.id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -266,11 +314,17 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
     }
   };
 
+  const normalizedActiveSession = normalizeSession(activeSession);
+  const displaySession = normalizedActiveSession?.game_status === "in_progress" ? normalizedActiveSession : latestSession;
   const latestGrid = latestSession?.grids;
-  const latestSize = Array.isArray(latestGrid?.sizes) ? latestGrid.sizes[0] : latestGrid?.sizes;
+  const latestSize = normalizedActiveSession?.game_status === "in_progress"
+    ? { rows: normalizedActiveSession.size, columns: normalizedActiveSession.size }
+    : Array.isArray(latestGrid?.sizes)
+      ? latestGrid.sizes[0]
+      : latestGrid?.sizes;
   const hintsLeft =
-    latestSession && latestSession.hint_limit !== null && latestSession.hint_limit !== undefined
-      ? Math.max(latestSession.hint_limit - latestSession.hint_count, 0)
+    displaySession && displaySession.hint_limit !== null && displaySession.hint_limit !== undefined
+      ? Math.max(displaySession.hint_limit - displaySession.hint_count, 0)
       : "No limit";
   const hasUnsavedAvatarChanges = avatarVariant !== savedAvatarVariant || avatarImage !== savedAvatarImage;
 
@@ -432,7 +486,7 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
               }}
             >
               <p style={labelStyle}>
-                <strong>Created at:</strong> {formatDate(latestGrid?.created_at)}
+                <strong>Created at:</strong> {formatDate(normalizedActiveSession?.game_status === "in_progress" ? normalizedActiveSession.started_at : latestGrid?.created_at)}
               </p>
               <p style={labelStyle}>
                 <strong>Size:</strong> {latestSize ? `${latestSize.rows} × ${latestSize.columns}` : "No puzzle yet"}
@@ -452,10 +506,10 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
               }}
             >
               <p style={labelStyle}>
-                <strong>Last saved:</strong> {formatDate(latestSession?.saved_at || latestSession?.started_at)}
+                <strong>Last saved:</strong> {formatDate(displaySession?.saved_at || displaySession?.started_at)}
               </p>
               <p style={labelStyle}>
-                <strong>Status:</strong> {latestSession?.game_status || "No active game"}
+                <strong>Status:</strong> {displaySession?.game_status || "No active game"}
               </p>
               <button
                 type="button"
@@ -467,7 +521,7 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
                 onMouseEnter={() => setHoveredAction("continue")}
                 onMouseLeave={() => setHoveredAction(null)}
               >
-                {latestSession ? "Continue" : "No Save Yet"}
+                {displaySession ? "Continue" : "No Save Yet"}
               </button>
             </div>
           </article>
