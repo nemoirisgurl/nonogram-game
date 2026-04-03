@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
+import Navbar from "../component/navbar";
 
 const pageStyle = {
-  width: "min(1080px, 100%)",
-  margin: "0 auto",
-  minHeight: "100vh",
+  width: "min(1080px, calc(100% - 24px))",
+  margin: "clamp(12px, 2vw, 20px) auto",
+  minHeight: "calc(100vh - clamp(24px, 4vw, 40px))",
   display: "grid",
   gridTemplateColumns: "minmax(320px, 0.95fr) minmax(280px, 1.05fr)",
   background: "#f7f2ea",
@@ -17,7 +18,7 @@ const panelStyle = {
   padding: "clamp(28px, 5vw, 54px)",
   display: "grid",
   alignContent: "center",
-  gap: 18,
+  gap: 14,
   background: "#fffdf8",
 };
 
@@ -26,8 +27,8 @@ const showcaseStyle = {
   background: "radial-gradient(circle at top, #2e7a55 0%, #1c5a3c 38%, #103322 100%)",
   padding: "clamp(28px, 5vw, 54px)",
   display: "grid",
-  alignContent: "space-between",
-  gap: 24,
+  alignContent: "center",
+  gap: 16,
 };
 
 const inputStyle = {
@@ -51,6 +52,50 @@ const buttonStyle = {
   background: "#1c5a3c",
   color: "#eff9f1",
 };
+
+const responsiveStyles = `
+  .auth-page {
+    width: min(1080px, calc(100% - 24px));
+    margin: clamp(12px, 2vw, 20px) auto;
+    min-height: calc(100vh - clamp(24px, 4vw, 40px));
+    display: grid;
+  }
+
+  .auth-panel,
+  .auth-showcase {
+    min-width: 0;
+  }
+
+  @media (max-width: 820px) {
+    .auth-page {
+      width: min(100%, calc(100% - 20px));
+      min-height: auto;
+      grid-template-columns: 1fr !important;
+      border-radius: 0;
+    }
+
+    .auth-panel {
+      order: 1;
+    }
+
+    .auth-showcase {
+      order: 2;
+      min-height: 260px !important;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .auth-page {
+      width: 100%;
+      box-shadow: none !important;
+    }
+
+    .auth-panel,
+    .auth-showcase {
+      padding: 22px 16px !important;
+    }
+  }
+`;
 
 function normalizeErrorMessage(error) {
   if (!error) {
@@ -183,9 +228,12 @@ export default function Register({ onRegister }) {
   };
 
   return (
-    <section style={pageStyle}>
-      <section style={panelStyle}>
-        <div style={{ display: "grid", gap: 8 }}>
+    <>
+      <style>{responsiveStyles}</style>
+      <Navbar />
+      <section className="auth-page" style={pageStyle}>
+      <section className="auth-panel" style={panelStyle}>
+        <div style={{ display: "grid", gap: 6 }}>
           <p style={{ margin: 0, color: "#5a7c64", fontWeight: 700, letterSpacing: "0.14em", fontSize: "0.76rem" }}>NEW ACCOUNT</p>
           <h2 style={{ margin: 0, fontSize: "clamp(1.8rem, 4vw, 2.4rem)", color: "#1f170f" }}>Register</h2>
           <p style={{ margin: 0, color: "#6f5d4a", lineHeight: 1.6 }}>
@@ -237,17 +285,14 @@ export default function Register({ onRegister }) {
         </p>
       </section>
 
-      <aside style={showcaseStyle}>
-        <div style={{ display: "grid", gap: 12 }}>
+      <aside className="auth-showcase" style={showcaseStyle}>
+        <div style={{ display: "grid", gap: 6 }}>
           <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.22em", color: "#dff6e7" }}>NONOGRAMMER</p>
           <h1 style={{ margin: 0, fontSize: "clamp(2.1rem, 6vw, 4.2rem)", lineHeight: 0.94, color: "#ecfff4" }}>
             Register
             <br />
             new account.
           </h1>
-          <p style={{ margin: 0, maxWidth: 360, fontSize: "1rem", lineHeight: 1.6, color: "rgba(236, 255, 244, 0.86)" }}>
-            The layout follows the auth mockup and keeps the form straightforward for testing.
-          </p>
         </div>
 
         <div
@@ -262,6 +307,7 @@ export default function Register({ onRegister }) {
         >
         </div>
       </aside>
-    </section>
+      </section>
+    </>
   );
 }

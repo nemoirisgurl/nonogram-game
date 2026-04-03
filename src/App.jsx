@@ -258,10 +258,20 @@ function App() {
 
   const renderPage = () => {
     if (route === "#/login") {
+      if (currentUser) {
+        window.location.hash = "#/profile";
+        return null;
+      }
+
       return <Login currentUser={currentUser} onLogin={handleLogin} />;
     }
 
     if (route === "#/register") {
+      if (currentUser) {
+        window.location.hash = "#/profile";
+        return null;
+      }
+
       return <Register onRegister={handleLogin} />;
     }
 

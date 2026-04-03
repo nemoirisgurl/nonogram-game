@@ -140,28 +140,30 @@ export default function Navbar() {
             </a>
           </>
         )}
-        <a
-          href="#/profile"
-          aria-label={navbarUser ? `${navbarUser.username} profile` : "Profile"}
-          title={navbarUser ? `${navbarUser.username} profile` : "Profile"}
-          style={{
-            ...linkStyle,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "clamp(40px, 6vw, 48px)",
-            height: "clamp(40px, 6vw, 48px)",
-            borderRadius: 999,
-            background: "rgba(17, 17, 17, 0.05)",
-          }}
-        >
-          <AvatarIcon
-            variant={navbarUser?.avatarVariant}
-            initials={getInitials(navbarUser?.username)}
-            imageSrc={navbarUser?.avatarImage}
-            style={{ width: "clamp(32px, 5vw, 40px)", height: "clamp(32px, 5vw, 40px)" }}
-          />
-        </a>
+        {navbarUser ? (
+          <a
+            href="#/profile"
+            aria-label={`${navbarUser.username} profile`}
+            title={`${navbarUser.username} profile`}
+            style={{
+              ...linkStyle,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "clamp(40px, 6vw, 48px)",
+              height: "clamp(40px, 6vw, 48px)",
+              borderRadius: 999,
+              background: "rgba(17, 17, 17, 0.05)",
+            }}
+          >
+            <AvatarIcon
+              variant={navbarUser.avatarVariant}
+              initials={getInitials(navbarUser.username)}
+              imageSrc={navbarUser.avatarImage}
+              style={{ width: "clamp(32px, 5vw, 40px)", height: "clamp(32px, 5vw, 40px)" }}
+            />
+          </a>
+        ) : null}
       </nav>
     </header>
   );

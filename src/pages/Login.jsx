@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import Navbar from "../component/navbar";
 
 const pageStyle = {
-  width: "min(1080px, 100%)",
-  margin: "0 auto",
-  minHeight: "100vh",
+  width: "min(1080px, calc(100% - 24px))",
+  margin: "clamp(12px, 2vw, 20px) auto",
+  minHeight: "calc(100vh - clamp(24px, 4vw, 40px))",
   display: "grid",
   gridTemplateColumns: "minmax(280px, 1.05fr) minmax(320px, 0.95fr)",
   background: "#f7f2ea",
@@ -19,15 +20,15 @@ const showcaseStyle = {
   background: "linear-gradient(160deg, #f4c34a 0%, #ec8f37 42%, #e15b2d 100%)",
   padding: "clamp(28px, 5vw, 54px)",
   display: "grid",
-  alignContent: "space-between",
-  gap: 24,
+  alignContent: "center",
+  gap: 16,
 };
 
 const panelStyle = {
   padding: "clamp(28px, 5vw, 54px)",
   display: "grid",
   alignContent: "center",
-  gap: 18,
+  gap: 14,
   background: "#fffdf8",
 };
 
@@ -52,6 +53,50 @@ const buttonStyle = {
   background: "#1f170f",
   color: "#fff8ec",
 };
+
+const responsiveStyles = `
+  .auth-page {
+    width: min(1080px, calc(100% - 24px));
+    margin: clamp(12px, 2vw, 20px) auto;
+    min-height: calc(100vh - clamp(24px, 4vw, 40px));
+    display: grid;
+  }
+
+  .auth-showcase,
+  .auth-panel {
+    min-width: 0;
+  }
+
+  @media (max-width: 820px) {
+    .auth-page {
+      width: min(100%, calc(100% - 20px));
+      min-height: auto;
+      grid-template-columns: 1fr !important;
+      border-radius: 0;
+    }
+
+    .auth-showcase {
+      min-height: 260px !important;
+      order: 1;
+    }
+
+    .auth-panel {
+      order: 2;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .auth-page {
+      width: 100%;
+      box-shadow: none !important;
+    }
+
+    .auth-showcase,
+    .auth-panel {
+      padding: 22px 16px !important;
+    }
+  }
+`;
 
 function normalizeErrorMessage(error) {
   if (!error) {
@@ -157,18 +202,18 @@ export default function Login({ currentUser, onLogin }) {
   };
 
   return (
-    <section style={pageStyle}>
-      <aside style={showcaseStyle}>
-        <div style={{ display: "grid", gap: 12 }}>
+    <>
+      <style>{responsiveStyles}</style>
+      <Navbar />
+      <section className="auth-page" style={pageStyle}>
+      <aside className="auth-showcase" style={showcaseStyle}>
+        <div style={{ display: "grid", gap: 6 }}>
           <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.22em", color: "#fff5d6" }}>NONOGRAMMER</p>
           <h1 style={{ margin: 0, fontSize: "clamp(2.1rem, 6vw, 4.2rem)", lineHeight: 0.94, color: "#1c130b" }}>
             Login
             <br />
             your account.
           </h1>
-          <p style={{ margin: 0, maxWidth: 360, fontSize: "1rem", lineHeight: 1.6, color: "rgba(28, 19, 11, 0.82)" }}>
-            A simple sign-in screen using your email and password, styled from the auth mockup.
-          </p>
         </div>
 
         <div
@@ -184,8 +229,8 @@ export default function Login({ currentUser, onLogin }) {
         </div>
       </aside>
 
-      <section style={panelStyle}>
-        <div style={{ display: "grid", gap: 8 }}>
+      <section className="auth-panel" style={panelStyle}>
+        <div style={{ display: "grid", gap: 6 }}>
           <p style={{ margin: 0, color: "#8a6845", fontWeight: 700, letterSpacing: "0.14em", fontSize: "0.76rem" }}>WELCOME BACK</p>
           <h2 style={{ margin: 0, fontSize: "clamp(1.8rem, 4vw, 2.4rem)", color: "#1f170f" }}>Login</h2>
           <p style={{ margin: 0, color: "#6f5d4a", lineHeight: 1.6 }}>{statusText}</p>
@@ -218,6 +263,7 @@ export default function Login({ currentUser, onLogin }) {
           </a>
         </p>
       </section>
-    </section>
+      </section>
+    </>
   );
 }
