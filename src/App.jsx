@@ -7,6 +7,7 @@ import Solver from "./pages/Solver";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import { Analytics } from "@vercel/analytics/react";
 import { supabase } from "./lib/supabase";
 
 const routes = ["#/", "#/play", "#/game", "#/solver", "#/profile", "#/login", "#/register"];
@@ -323,7 +324,10 @@ function App() {
     return <Home />;
   };
 
-  return <section id="center">{renderPage()}</section>;
+  return <>
+    <Analytics />
+    <section id="center">{renderPage()}</section>
+    </>;
 }
 
 export default App;
