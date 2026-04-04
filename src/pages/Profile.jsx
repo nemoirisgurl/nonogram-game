@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import Navbar from "../component/navbar";
 import AvatarIcon from "../component/avatarIcon";
 import { supabase } from "../lib/supabase";
+import {
+  formatDate,
+  formatStatus,
+  getAvatarObjectPath,
+  getAvatarPublicUrl,
+  getInitials,
+  loadActiveSession,
+  normalizeSession,
+  saveAvatarPreference,
+} from "../lib/utils";
 
 const shellStyle = {
   width: "min(920px, 100%)",
@@ -36,55 +46,6 @@ const labelStyle = {
 
 const avatarOptions = ["amber", "mint", "sky", "coral"];
 const avatarBucket = "avatar_icons";
-const activeSessionStorageKey = "nonogram-active-session";
-
-function getAvatarStorageKey(userId) {
-  return `nonogram-avatar-${userId}`;
-}
-
-function saveAvatarPreference(userId, avatarVariant, avatarImage) {
-  window.localStorage.setItem(
-    getAvatarStorageKey(userId),
-    JSON.stringify({
-      avatarVariant,
-      avatarImage,
-    })
-  );
-  window.dispatchEvent(new Event("avatar-change"));
-}
-
-function getAvatarObjectPath(userId) {
-  return `${userId}/avatar`;
-}
-
-function getAvatarPublicUrl(userId, cacheKey = Date.now()) {
-  const { data } = supabase.storage.from(avatarBucket).getPublicUrl(getAvatarObjectPath(userId));
-  return data?.publicUrl ? `${data.publicUrl}?t=${cacheKey}` : "";
-}
-
-function getInitials(username) {
-  if (!username) {
-    return "";
-  }
-
-  return username
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("");
-}
-
-function formatDate(value) {
-  if (!value) {
-    return "No data yet";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
 
 function GridPreview() {
   return (
@@ -112,41 +73,7 @@ function GridPreview() {
   );
 }
 
-function loadActiveSession(playerId) {
-  if (!playerId) {
-    return null;
-  }
-
-  try {
-    const stored = window.localStorage.getItem(activeSessionStorageKey);
-    const parsed = stored ? JSON.parse(stored) : null;
-
-    if (!parsed || parsed.playerId !== playerId) {
-      return null;
-    }
-
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeSession(session) {
-  if (!session) {
-    return null;
-  }
-
-  return {
-    ...session,
-    hint_count: session.hint_count ?? session.hintCount ?? 0,
-    hint_limit: session.hint_limit ?? session.hintLimit ?? null,
-    game_status: session.game_status ?? session.gameStatus ?? "",
-    started_at: session.started_at ?? session.startedAt ?? null,
-    saved_at: session.saved_at ?? session.savedAt ?? null,
-  };
-}
-
-export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
+export default function Profile({ currentUser, onLogout, onProfileUpdate, onContinueGame }) {
   const [hoveredAction, setHoveredAction] = useState(null);
   const [avatarVariant, setAvatarVariant] = useState(currentUser?.avatarVariant || "amber");
   const [avatarImage, setAvatarImage] = useState(currentUser?.avatarImage || "");
@@ -326,6 +253,7 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
     displaySession && displaySession.hint_limit !== null && displaySession.hint_limit !== undefined
       ? Math.max(displaySession.hint_limit - displaySession.hint_count, 0)
       : "No limit";
+  const canContinue = normalizedActiveSession?.game_status === "in_progress";
   const hasUnsavedAvatarChanges = avatarVariant !== savedAvatarVariant || avatarImage !== savedAvatarImage;
 
   return (
@@ -509,19 +437,29 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate }) {
                 <strong>Last saved:</strong> {formatDate(displaySession?.saved_at || displaySession?.started_at)}
               </p>
               <p style={labelStyle}>
-                <strong>Status:</strong> {displaySession?.game_status || "No active game"}
+                <strong>Status:</strong> {formatStatus(displaySession?.game_status)}
               </p>
               <button
                 type="button"
+                disabled={!canContinue}
                 style={{
                   ...buttonStyle,
-                  background: hoveredAction === "continue" ? "#e3b11f" : "#ffca2c",
+                  background: canContinue ? (hoveredAction === "continue" ? "#e3b11f" : "#ffca2c") : "#f1d88a",
                   transform: hoveredAction === "continue" ? "translateY(-1px)" : "translateY(0)",
+                  cursor: canContinue ? "pointer" : "not-allowed",
+                  opacity: canContinue ? 1 : 0.8,
+                }}
+                onClick={() => {
+                  if (!canContinue) {
+                    return;
+                  }
+
+                  onContinueGame?.(normalizedActiveSession);
                 }}
                 onMouseEnter={() => setHoveredAction("continue")}
                 onMouseLeave={() => setHoveredAction(null)}
               >
-                {displaySession ? "Continue" : "No Save Yet"}
+                {canContinue ? "Continue" : "No Save Yet"}
               </button>
             </div>
           </article>

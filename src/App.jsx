@@ -105,6 +105,7 @@ function App() {
   const [hintLimit, setHintLimit] = useState(null);
   const [currentGridId, setCurrentGridId] = useState(null);
   const [currentPuzzle, setCurrentPuzzle] = useState(null);
+  const [resumeSnapshot, setResumeSnapshot] = useState(null);
   const [isInGame, setIsInGame] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -216,6 +217,22 @@ function App() {
     setHintLimit(nextHintLimit);
     setCurrentGridId(gridId);
     setCurrentPuzzle(puzzle);
+    setResumeSnapshot(null);
+    setIsInGame(true);
+    window.location.hash = "#/game";
+  };
+
+  const continueGame = (sessionSnapshot) => {
+    if (!sessionSnapshot) {
+      return;
+    }
+
+    setPlayerName(sessionSnapshot.playerName || currentUser?.username || "");
+    setSize(sessionSnapshot.size || 5);
+    setHintLimit(sessionSnapshot.hintLimit ?? sessionSnapshot.currentState?.hintLimit ?? null);
+    setCurrentGridId(sessionSnapshot.gridId || null);
+    setCurrentPuzzle(sessionSnapshot.currentState?.puzzle || null);
+    setResumeSnapshot(sessionSnapshot);
     setIsInGame(true);
     window.location.hash = "#/game";
   };
@@ -224,6 +241,7 @@ function App() {
     setIsInGame(false);
     setCurrentGridId(null);
     setCurrentPuzzle(null);
+    setResumeSnapshot(null);
     window.location.hash = "#/play";
   };
 
@@ -286,7 +304,7 @@ function App() {
     }
 
     if (route === "#/game" && isInGame) {
-      return <Game currentUser={currentUser} gridId={currentGridId} initialPuzzle={currentPuzzle} playerName={playerName} size={size} hintLimit={hintLimit} onAbandon={abandonGame} />;
+      return <Game currentUser={currentUser} gridId={currentGridId} initialPuzzle={currentPuzzle} resumeSnapshot={resumeSnapshot} playerName={playerName} size={size} hintLimit={hintLimit} onAbandon={abandonGame} />;
     }
 
     if (route === "#/play") {
@@ -299,7 +317,7 @@ function App() {
         return null;
       }
 
-      return <Profile currentUser={currentUser} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
+      return <Profile currentUser={currentUser} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} onContinueGame={continueGame} />;
     }
 
     return <Home />;

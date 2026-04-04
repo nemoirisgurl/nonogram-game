@@ -267,6 +267,7 @@ export default function Nonogram({
   mode = "game",
   size = 5,
   initialPuzzle = null,
+  initialState = null,
   playerName = "",
   hintLimit = null,
   onAbandon,
@@ -292,23 +293,25 @@ export default function Nonogram({
     );
   }
 
+  const bootPuzzle = initialState?.puzzle || initialPuzzle || generatePuzzle(size, 100);
+  const bootGrid = initialState?.grid || createEmptyGrid(size);
   const canvasRef = useRef(null);
   const dragActionRef = useRef(null);
   const lastDraggedCellRef = useRef(null);
-  const [puzzle, setPuzzle] = useState(() => initialPuzzle || generatePuzzle(size, 100));
-  const [grid, setGrid] = useState(() => createEmptyGrid(size));
+  const [puzzle, setPuzzle] = useState(() => bootPuzzle);
+  const [grid, setGrid] = useState(() => bootGrid);
   const [viewportSize, setViewportSize] = useState({ w: window.innerWidth, h: window.innerHeight });
-  const [didWin, setDidWin] = useState(false);
+  const [didWin, setDidWin] = useState(() => checkWin(bootGrid, bootPuzzle.solution));
   const [hintMessage, setHintMessage] = useState("");
-  const [toolMode, setToolMode] = useState("fill");
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [hintsUsed, setHintsUsed] = useState(0);
-  const [lockedCells, setLockedCells] = useState(() => new Set());
+  const [toolMode, setToolMode] = useState(() => initialState?.toolMode || "fill");
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => initialState?.elapsedSeconds ?? 0);
+  const [hintsUsed, setHintsUsed] = useState(() => initialState?.hintsUsed ?? 0);
+  const [lockedCells, setLockedCells] = useState(() => new Set(initialState?.lockedCells || []));
   const [saveMessage, setSaveMessage] = useState("");
   const [hoveredButton, setHoveredButton] = useState(null);
   const [isUseHovered, setIsUseHovered] = useState(false);
   const [isCrossHovered, setIsCrossHovered] = useState(false);
-  const [startedAt, setStartedAt] = useState(() => new Date().toISOString());
+  const [startedAt, setStartedAt] = useState(() => initialState?.startedAt || new Date().toISOString());
   const maxRowClues = Math.max(...puzzle.rowClues.map((clue) => clue.length));
   const maxColClues = Math.max(...puzzle.colClues.map((clue) => clue.length));
   const isCompactViewport = viewportSize.w < 820;
@@ -339,20 +342,22 @@ export default function Nonogram({
   }, []);
 
   useEffect(() => {
-    const nextPuzzle = initialPuzzle || generatePuzzle(size, 100);
+    const nextPuzzle = initialState?.puzzle || initialPuzzle || generatePuzzle(size, 100);
+    const nextGrid = initialState?.grid || createEmptyGrid(size);
+
     setPuzzle(nextPuzzle);
-    setGrid(createEmptyGrid(size));
-    setDidWin(false);
+    setGrid(nextGrid);
+    setDidWin(checkWin(nextGrid, nextPuzzle.solution));
     setHintMessage("");
-    setElapsedSeconds(0);
-    setHintsUsed(0);
-    setStartedAt(new Date().toISOString());
-    setLockedCells(new Set());
+    setElapsedSeconds(initialState?.elapsedSeconds ?? 0);
+    setHintsUsed(initialState?.hintsUsed ?? 0);
+    setStartedAt(initialState?.startedAt || new Date().toISOString());
+    setLockedCells(new Set(initialState?.lockedCells || []));
     setSaveMessage("");
-    setToolMode("fill");
+    setToolMode(initialState?.toolMode || "fill");
     dragActionRef.current = null;
     lastDraggedCellRef.current = null;
-  }, [initialPuzzle, size]);
+  }, [initialPuzzle, initialState, size]);
 
   useEffect(() => {
     if (didWin) return undefined;

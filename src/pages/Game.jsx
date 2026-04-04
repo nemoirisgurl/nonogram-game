@@ -20,19 +20,20 @@ function saveActiveSessionLocally(snapshot) {
   window.dispatchEvent(new Event("active-session-change"));
 }
 
-export default function Game({ currentUser, gridId, initialPuzzle, playerName, size, hintLimit, onAbandon }) {
+export default function Game({ currentUser, gridId, initialPuzzle, resumeSnapshot = null, playerName, size, hintLimit, onAbandon }) {
   const saveTimeoutRef = useRef(null);
   const currentSessionIdRef = useRef(null);
   const latestSnapshotRef = useRef(null);
+  const activeGridId = gridId || resumeSnapshot?.gridId || null;
 
   const persistSession = useCallback(async (snapshot) => {
-    if (!currentUser?.id || !gridId) {
+    if (!currentUser?.id || !activeGridId) {
       return;
     }
 
     const payload = {
       player_id: currentUser.id,
-      grid_id: gridId,
+      grid_id: activeGridId,
       playtime: snapshot.elapsedSeconds,
       hint_count: snapshot.hintCount,
       hint_limit: snapshot.hintLimit ?? 0,
@@ -74,11 +75,12 @@ export default function Game({ currentUser, gridId, initialPuzzle, playerName, s
     } catch {
       // Keep local progress even if the summary sync fails.
     }
-  }, [currentUser?.id, gridId]);
+  }, [activeGridId, currentUser]);
 
   const handleProgressChange = useCallback((snapshot) => {
     const activeSnapshot = {
       playerId: currentUser?.id || null,
+      gridId: activeGridId,
       playerName: snapshot.playerName,
       size: snapshot.size,
       hintCount: snapshot.hintsUsed,
@@ -95,6 +97,7 @@ export default function Game({ currentUser, gridId, initialPuzzle, playerName, s
         hintLimit: snapshot.hintLimit ?? 0,
         hintsUsed: snapshot.hintsUsed,
         elapsedSeconds: snapshot.elapsedSeconds,
+        startedAt: snapshot.startedAt,
       },
     };
 
@@ -105,14 +108,14 @@ export default function Game({ currentUser, gridId, initialPuzzle, playerName, s
       window.clearTimeout(saveTimeoutRef.current);
     }
 
-    if (!currentUser?.id || !gridId) {
+    if (!currentUser?.id || !activeGridId) {
       return;
     }
 
     saveTimeoutRef.current = window.setTimeout(() => {
       void persistSession(activeSnapshot);
     }, 600);
-  }, [currentUser?.id, persistSession]);
+  }, [activeGridId, currentUser?.id, persistSession]);
 
   const handleAbandon = useCallback(() => {
     const abandonedSnapshot = {
@@ -153,6 +156,7 @@ export default function Game({ currentUser, gridId, initialPuzzle, playerName, s
         <Nonogram
           size={size}
           initialPuzzle={initialPuzzle}
+          initialState={resumeSnapshot?.currentState || null}
           playerName={playerName}
           hintLimit={hintLimit}
           onAbandon={handleAbandon}
