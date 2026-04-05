@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../component/navbar";
 import { supabase } from "../lib/supabase";
 import { generatePuzzle } from "../lib/nonogramEngine";
+import { normalizeSizeRow } from "../lib/utils";
 
 const fallbackSizeOptions = [5, 10, 15, 20];
 
@@ -25,40 +26,6 @@ const fieldStyle = {
   fontSize: "clamp(0.95rem, 2.8vw, 1rem)",
   outline: "none",
 };
-
-function normalizeSizeRow(item) {
-  const rows = Number(item.rows);
-  const columns = Number(item.columns);
-  const squareSize = Number(item.size ?? item.value);
-
-  if (Number.isFinite(rows) && Number.isFinite(columns) && rows > 0 && columns > 0) {
-    return {
-      key: item.id || `${rows}x${columns}`,
-      value: rows,
-      label: `${rows} x ${columns}`,
-      accepted: rows === columns,
-      reason: rows === columns ? "" : "Only square puzzle sizes are supported right now.",
-    };
-  }
-
-  if (Number.isFinite(squareSize) && squareSize > 0) {
-    return {
-      key: item.id || squareSize,
-      value: squareSize,
-      label: `${squareSize} x ${squareSize}`,
-      accepted: true,
-      reason: "",
-    };
-  }
-
-  return {
-    key: item.id || "unknown",
-    value: null,
-    label: "Invalid size row",
-    accepted: false,
-    reason: "Missing numeric rows/columns or size value.",
-  };
-}
 
 export default function GameSetup({ currentUser, initialName = "", initialSize = 5, initialHintLimit = null, onStart }) {
   const [name, setName] = useState(initialName);
