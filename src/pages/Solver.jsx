@@ -283,7 +283,7 @@ export default function Solver() {
             />
           </div>
           <p style={{ fontSize: "clamp(0.8rem, 2.6vw, 0.875rem)", color: "#5b6473", textAlign: "center" }}>
-            Click cells to toggle crosses. Solve will replace the board with the solved grid.
+            Click cells to toggle crosses. pressing Solve will replace the board with the solved grid.
           </p>
         </div>
 
