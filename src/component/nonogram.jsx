@@ -310,7 +310,6 @@ export default function Nonogram({
   const [saveMessage, setSaveMessage] = useState("");
   const [hoveredButton, setHoveredButton] = useState(null);
   const [isUseHovered, setIsUseHovered] = useState(false);
-  const [isCrossHovered, setIsCrossHovered] = useState(false);
   const [startedAt, setStartedAt] = useState(() => initialState?.startedAt || new Date().toISOString());
   const maxRowClues = Math.max(...puzzle.rowClues.map((clue) => clue.length));
   const maxColClues = Math.max(...puzzle.colClues.map((clue) => clue.length));
@@ -522,7 +521,7 @@ export default function Nonogram({
     window.localStorage.setItem("nonogrammer-save", JSON.stringify(snapshot));
     onProgressChange?.(snapshot);
     setHintMessage("");
-    setSaveMessage("Saved locally.");
+    setSaveMessage("Saved.");
   };
 
   useEffect(() => {
@@ -734,19 +733,12 @@ export default function Nonogram({
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={() => setToolMode("fill")}
+                onClick={() => {
+                  setToolMode((currentMode) => (currentMode === "fill" ? "cross" : "fill"));
+                }}
                 style={panelButtonStyle(toolMode === "fill")}
               >
-                F
-              </button>
-              <button
-                type="button"
-                onClick={() => setToolMode("cross")}
-                onMouseEnter={() => setIsCrossHovered(true)}
-                onMouseLeave={() => setIsCrossHovered(false)}
-                style={{ ...panelButtonStyle(toolMode === "cross"), background: toolMode === "cross" ? "#0f67c7" : isCrossHovered ? "#f0f0f0" : "#ffffff" }}
-              >
-                C
+                {toolMode === "fill" ? "F" : "X"}
               </button>
             </div>
           </div>
