@@ -47,31 +47,6 @@ const labelStyle = {
 const avatarOptions = ["amber", "mint", "sky", "coral"];
 const avatarBucket = "avatar_icons";
 
-function GridPreview() {
-  return (
-    <svg viewBox="0 0 96 96" aria-hidden="true" style={{ width: "100%", height: "100%" }}>
-      <rect x="18" y="18" width="58" height="58" fill="#ffffff" stroke="#111111" strokeWidth="2.5" />
-      <line x1="30" y1="18" x2="30" y2="76" stroke="#111111" strokeWidth="1.2" />
-      <line x1="38" y1="18" x2="38" y2="76" stroke="#111111" strokeWidth="1.2" />
-      <line x1="46" y1="18" x2="46" y2="76" stroke="#111111" strokeWidth="1.2" />
-      <line x1="54" y1="18" x2="54" y2="76" stroke="#111111" strokeWidth="1.2" />
-      <line x1="62" y1="18" x2="62" y2="76" stroke="#111111" strokeWidth="1.2" />
-      <line x1="70" y1="18" x2="70" y2="76" stroke="#111111" strokeWidth="1.2" />
-      <line x1="18" y1="30" x2="76" y2="30" stroke="#111111" strokeWidth="1.2" />
-      <line x1="18" y1="38" x2="76" y2="38" stroke="#111111" strokeWidth="1.2" />
-      <line x1="18" y1="46" x2="76" y2="46" stroke="#111111" strokeWidth="1.2" />
-      <line x1="18" y1="54" x2="76" y2="54" stroke="#111111" strokeWidth="1.2" />
-      <line x1="18" y1="62" x2="76" y2="62" stroke="#111111" strokeWidth="1.2" />
-      <line x1="18" y1="70" x2="76" y2="70" stroke="#111111" strokeWidth="1.2" />
-      <line x1="18" y1="18" x2="76" y2="18" stroke="#111111" strokeWidth="2.5" />
-      <line x1="18" y1="18" x2="18" y2="76" stroke="#111111" strokeWidth="2.5" />
-      <path d="M8 20h10M8 28h10M24 8v10M32 8v10" stroke="#111111" strokeWidth="2.5" strokeLinecap="round" />
-      <text x="22" y="33" fontSize="10" fontWeight="700" fill="#111111">
-        2
-      </text>
-    </svg>
-  );
-}
 
 export default function Profile({ currentUser, onLogout, onProfileUpdate, onContinueGame }) {
   const [hoveredAction, setHoveredAction] = useState(null);
@@ -392,25 +367,22 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate, onCont
 
           <article
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "clamp(18px, 4vw, 34px)",
-              flexWrap: "wrap",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "clamp(18px, 4vw, 24px)",
               borderRadius: "clamp(18px, 3vw, 22px)",
               padding: "clamp(18px, 4vw, 28px)",
               background: "linear-gradient(90deg, #d3f7c8 0%, #c8f8c5 48%, #ccf7d2 100%)",
             }}
           >
-            <div style={{ width: "clamp(84px, 14vw, 108px)", aspectRatio: "1 / 1", flexShrink: 0 }}>
-              <GridPreview />
-            </div>
-
             <div
               style={{
-                flex: "1 1 280px",
                 display: "grid",
                 gap: 10,
-                minWidth: "min(100%, 240px)",
+                padding: "clamp(16px, 3vw, 20px)",
+                borderRadius: 18,
+                background: "rgba(255, 255, 255, 0.48)",
+                border: "1px solid rgba(17, 17, 17, 0.08)",
               }}
             >
               <p style={labelStyle}>
@@ -426,11 +398,12 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate, onCont
 
             <div
               style={{
-                flex: "1 1 220px",
                 display: "grid",
-                justifyItems: "start",
-                alignContent: "center",
-                gap: 22,
+                gap: 10,
+                padding: "clamp(16px, 3vw, 20px)",
+                borderRadius: 18,
+                background: "rgba(255, 255, 255, 0.48)",
+                border: "1px solid rgba(17, 17, 17, 0.08)",
               }}
             >
               <p style={labelStyle}>
@@ -444,6 +417,8 @@ export default function Profile({ currentUser, onLogout, onProfileUpdate, onCont
                 disabled={!canContinue}
                 style={{
                   ...buttonStyle,
+                  justifySelf: "start",
+                  marginTop: 4,
                   background: canContinue ? (hoveredAction === "continue" ? "#e3b11f" : "#ffca2c") : "#f1d88a",
                   transform: hoveredAction === "continue" ? "translateY(-1px)" : "translateY(0)",
                   cursor: canContinue ? "pointer" : "not-allowed",
