@@ -143,6 +143,50 @@ export default function Game({ currentUser, gridId, initialPuzzle, resumeSnapsho
     onAbandon?.();
   }, [currentUser?.id, hintLimit, onAbandon, persistSession, playerName, size]);
 
+  useEffect(() => {
+    if (!currentUser?.id || !activeGridId || resumeSnapshot) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const cleanupFinishedSessions = async () => {
+      try {
+        const { data: finishedSessions, error: sessionLookupError } = await supabase
+          .from("play_sessions")
+          .select("id, grid_id")
+          .eq("player_id", currentUser.id)
+          .in("game_status", ["completed", "abandoned"])
+          .neq("grid_id", activeGridId);
+
+        if (!isMounted || sessionLookupError || !Array.isArray(finishedSessions) || !finishedSessions.length) {
+          return;
+        }
+
+        const sessionIds = finishedSessions.map((session) => session.id).filter(Boolean);
+        const gridIds = [...new Set(finishedSessions.map((session) => session.grid_id).filter(Boolean))];
+
+        if (sessionIds.length) {
+          const { error: deleteSessionError } = await supabase.from("play_sessions").delete().in("id", sessionIds);
+
+          if (deleteSessionError || !gridIds.length) {
+            return;
+          }
+        }
+
+        await supabase.from("grids").delete().in("id", gridIds);
+      } catch {
+        // Ignore cleanup failures so new games can still start.
+      }
+    };
+
+    void cleanupFinishedSessions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeGridId, currentUser?.id, resumeSnapshot]);
+
   useEffect(() => () => {
     if (saveTimeoutRef.current) {
       window.clearTimeout(saveTimeoutRef.current);
