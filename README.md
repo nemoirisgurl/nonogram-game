@@ -43,7 +43,7 @@ This React app acts as a Nonogram Puzzle and Solver in one app. I was addicted w
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/nemoirisgurl/nonogram-game.git
    cd nonogram
    ```
 2. Install dependencies:
