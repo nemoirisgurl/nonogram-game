@@ -1,0 +1,16 @@
+services:
+  nonogram:
+    build:
+      context: .
+      secrets:
+        - VITE_SUPABASE_URL
+        - VITE_SUPABASE_ANON_KEY
+    ports:
+      - "8080:80"
+    restart: always
+
+secrets:
+  VITE_SUPABASE_URL:
+    environment: VITE_SUPABASE_URL
+  VITE_SUPABASE_ANON_KEY:
+    environment: VITE_SUPABASE_ANON_KEY

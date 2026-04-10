@@ -2,7 +2,10 @@
 ## Contents
 1. [Introduction](#introduction)
 2. [Features](#features)
-3. [Project Directory](#directory)
+3. [Getting Started](#getting-started)
+4. [Deployment](#deployment)
+5. [Project Directory](#directory)
+
 ## Introduction
 This React app acts as a Nonogram Puzzle and Solver in one app. I was addicted with Nonogram game in my iPad and I was too lazy to solve them manually so I created this app.
 
@@ -31,6 +34,43 @@ This React app acts as a Nonogram Puzzle and Solver in one app. I was addicted w
 - **Responsive Design**: Fully playable on both desktop and mobile devices.
 - **Polished Aesthetics**: Clean, modern interface with smooth transitions and interactive components.
 - **Integrated Navigation**: Seamless switching between Home, Game, Solver, and Profile pages.
+
+## Getting Started
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18+)
+- [Supabase Account](https://supabase.com/)
+
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd nonogram
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up environment variables:
+   Create a `.env` file from the template:
+   ```bash
+   cp .env.template .env
+   ```
+   Fill in your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+
+4. Run locally:
+   ```bash
+   npm run dev
+   ```
+
+## Deployment
+### Using Docker
+This project includes a production-ready Docker setup using Nginx.
+1. Ensure your `.env` file is populated.
+2. Build and run:
+   ```bash
+   docker-compose up --build
+   ```
+The app will be available at `http://localhost:8080`.
 
 ## Directory
 ```text
