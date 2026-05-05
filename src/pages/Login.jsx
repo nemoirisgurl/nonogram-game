@@ -3,95 +3,66 @@ import { supabase } from "../lib/supabase";
 import Navbar from "../component/navbar";
 
 const pageStyle = {
-  width: "min(1080px, calc(100% - 24px))",
-  margin: "clamp(12px, 2vw, 20px) auto",
-  minHeight: "calc(100vh - clamp(24px, 4vw, 40px))",
+  width: "min(920px, 100%)",
+  margin: "0 auto",
   display: "grid",
-  gridTemplateColumns: "minmax(280px, 1.05fr) minmax(320px, 0.95fr)",
-  background: "#f7f2ea",
-  borderRadius: "24px",
+  background: "#ffffff",
+  border: "1px solid rgba(15, 23, 42, 0.08)",
+  borderRadius: "clamp(16px, 3vw, 22px)",
   overflow: "hidden",
-  boxShadow: "0 24px 60px rgba(46, 36, 24, 0.18)",
-};
-
-const showcaseStyle = {
-  position: "relative",
-  minHeight: 420,
-  background: "linear-gradient(160deg, #f4c34a 0%, #ec8f37 42%, #e15b2d 100%)",
-  padding: "clamp(28px, 5vw, 54px)",
-  display: "grid",
-  alignContent: "center",
-  gap: 16,
+  boxShadow: "0 24px 60px rgba(15, 23, 42, 0.12)",
 };
 
 const panelStyle = {
-  padding: "clamp(28px, 5vw, 54px)",
+  margin: "clamp(14px, 3vw, 24px)",
+  padding: "30px clamp(18px, 4vw, 36px)",
   display: "grid",
-  alignContent: "center",
-  gap: 14,
-  background: "#fffdf8",
+  gap: "clamp(18px, 4vw, 22px)",
+  background: "#d7f1ff",
+  borderRadius: "clamp(16px, 3vw, 18px)",
 };
 
 const inputStyle = {
   width: "100%",
   boxSizing: "border-box",
-  border: "1px solid rgba(38, 29, 18, 0.16)",
-  borderRadius: 16,
-  padding: "14px 16px",
-  fontSize: "1rem",
+  border: "1.5px solid rgba(15, 23, 42, 0.18)",
+  borderRadius: 999,
+  padding: "clamp(10px, 2.8vw, 12px) clamp(12px, 3vw, 14px)",
+  fontSize: "clamp(0.95rem, 2.8vw, 1rem)",
   background: "#ffffff",
-  color: "#1f170f",
+  color: "#111111",
+  outline: "none",
 };
 
 const buttonStyle = {
   border: "none",
   borderRadius: 999,
-  padding: "14px 18px",
-  fontSize: "1rem",
+  padding: "12px 18px",
+  fontSize: "clamp(0.95rem, 3vw, 1rem)",
   fontWeight: 800,
   cursor: "pointer",
-  background: "#1f170f",
-  color: "#fff8ec",
+  background: "#ffca2c",
+  color: "#111111",
+  boxShadow: "inset 0 -2px 0 rgba(0, 0, 0, 0.12)",
 };
 
 const responsiveStyles = `
   .auth-page {
-    width: min(1080px, calc(100% - 24px));
-    margin: clamp(12px, 2vw, 20px) auto;
-    min-height: calc(100vh - clamp(24px, 4vw, 40px));
-    display: grid;
-  }
-
-  .auth-showcase,
-  .auth-panel {
-    min-width: 0;
+    width: min(920px, 100%);
+    margin: 0 auto;
   }
 
   @media (max-width: 820px) {
     .auth-page {
       width: min(100%, calc(100% - 20px));
-      min-height: auto;
-      grid-template-columns: 1fr !important;
-      border-radius: 0;
-    }
-
-    .auth-showcase {
-      min-height: 260px !important;
-      order: 1;
-    }
-
-    .auth-panel {
-      order: 2;
     }
   }
 
   @media (max-width: 560px) {
     .auth-page {
       width: 100%;
-      box-shadow: none !important;
     }
 
-    .auth-showcase,
     .auth-panel {
       padding: 22px 16px !important;
     }
@@ -122,6 +93,7 @@ function wait(ms) {
 export default function Login({ currentUser, onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -130,7 +102,7 @@ export default function Login({ currentUser, onLogin }) {
       return `Signed in as ${currentUser.username}`;
     }
 
-    return "Enter your account credentials to continue.";
+    return "";
   }, [currentUser]);
 
   const handleSubmit = async (event) => {
@@ -204,47 +176,29 @@ export default function Login({ currentUser, onLogin }) {
   return (
     <>
       <style>{responsiveStyles}</style>
-      <Navbar />
       <section className="auth-page" style={pageStyle}>
-      <aside className="auth-showcase" style={showcaseStyle}>
-        <div style={{ display: "grid", gap: 6 }}>
-          <p style={{ margin: 0, fontSize: "0.78rem", fontWeight: 700, letterSpacing: "0.22em", color: "#fff5d6" }}>NONOGRAMMER</p>
-          <h1 style={{ margin: 0, fontSize: "clamp(2.1rem, 6vw, 4.2rem)", lineHeight: 0.94, color: "#1c130b" }}>
-            Login
-            <br />
-            your account.
-          </h1>
-        </div>
-
-        <div
-          style={{
-            justifySelf: "center",
-            width: "min(100%, 420px)",
-            borderRadius: 22,
-            overflow: "hidden",
-            boxShadow: "0 18px 34px rgba(28, 19, 11, 0.18)",
-            background: "#fef4d5",
-          }}
-        >
-        </div>
-      </aside>
+      <Navbar />
 
       <section className="auth-panel" style={panelStyle}>
         <div style={{ display: "grid", gap: 6 }}>
-          <p style={{ margin: 0, color: "#8a6845", fontWeight: 700, letterSpacing: "0.14em", fontSize: "0.76rem" }}>WELCOME BACK</p>
-          <h2 style={{ margin: 0, fontSize: "clamp(1.8rem, 4vw, 2.4rem)", color: "#1f170f" }}>Login</h2>
-          <p style={{ margin: 0, color: "#6f5d4a", lineHeight: 1.6 }}>{statusText}</p>
+          <h2 style={{ margin: 0, fontSize: "clamp(1.8rem, 4vw, 2.4rem)", color: "#111111" }}>Login</h2>
+          {statusText ? <p style={{ margin: 0, color: "#45556c", lineHeight: 1.6 }}>{statusText}</p> : null}
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
-          <label style={{ display: "grid", gap: 8, color: "#2d241b", fontWeight: 700 }}>
+          <label style={{ display: "grid", gap: 8, color: "#111111", fontWeight: 800 }}>
             Email
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="pixel@example.com" style={inputStyle} />
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} style={inputStyle} />
           </label>
 
-          <label style={{ display: "grid", gap: 8, color: "#2d241b", fontWeight: 700 }}>
+          <label style={{ display: "grid", gap: 8, color: "#111111", fontWeight: 800 }}>
             Password
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" style={inputStyle} />
+            <span style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+              <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} style={inputStyle} />
+              <button type="button" onClick={() => setShowPassword((current) => !current)} style={{ ...buttonStyle, minWidth: 76, background: "#111111", color: "#ffffff" }}>
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </span>
           </label>
 
           {errorMessage ? (
@@ -256,9 +210,9 @@ export default function Login({ currentUser, onLogin }) {
           </button>
         </form>
 
-        <p style={{ margin: 0, color: "#6f5d4a" }}>
+        <p style={{ margin: 0, color: "#45556c" }}>
           No account yet?{" "}
-          <a href="#/register" style={{ color: "#1f170f", fontWeight: 800 }}>
+          <a href="#/register" style={{ color: "#111111", fontWeight: 800 }}>
             Create one
           </a>
         </p>
