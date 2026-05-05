@@ -195,7 +195,6 @@ export default function GameSetup({ currentUser, initialName = "", initialSize =
                 style={{ ...fieldStyle, background: lockedName ? "#f5f5f5" : "#ffffff", cursor: lockedName ? "not-allowed" : "text" }}
               />
             </label>
-            {lockedName ? <p style={{ margin: 0, color: "#45556c", fontSize: "0.95rem" }}>Signed-in players use their Supabase username.</p> : null}
 
             <label
               htmlFor="nonogramSize"
