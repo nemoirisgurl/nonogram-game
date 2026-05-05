@@ -2,15 +2,9 @@ services:
   nonogram:
     build:
       context: .
-      secrets:
-        - VITE_SUPABASE_URL
-        - VITE_SUPABASE_ANON_KEY
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
     ports:
-      - "8080:80"
+      - "${HOST_BIND:-0.0.0.0}:${HOST_PORT:-8080}:80"
     restart: always
-
-secrets:
-  VITE_SUPABASE_URL:
-    environment: VITE_SUPABASE_URL
-  VITE_SUPABASE_ANON_KEY:
-    environment: VITE_SUPABASE_ANON_KEY

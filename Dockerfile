@@ -1,19 +1,20 @@
 # Build Stage
-FROM node:20-alpine AS build
+FROM node:alpine AS build
 
 WORKDIR /app
+
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
 # Cache dependencies
 COPY package*.json ./
 RUN npm ci --quiet
 
-# Build the project using BuildKit secrets to safely access VITE_ variables
+# Build the project with Vite public environment variables baked into the static app.
 COPY . .
-RUN --mount=type=secret,id=VITE_SUPABASE_URL \
-    --mount=type=secret,id=VITE_SUPABASE_ANON_KEY \
-    VITE_SUPABASE_URL=$(cat /run/secrets/VITE_SUPABASE_URL) \
-    VITE_SUPABASE_ANON_KEY=$(cat /run/secrets/VITE_SUPABASE_ANON_KEY) \
-    npm run build
+RUN npm run build
 
 # Serve Stage (Nginx)
 FROM nginx:stable-alpine
